@@ -9,6 +9,7 @@ const icons = {
   trophy: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0V4Zm-4 1h4v5C5 10 4 8 4 5Zm16 0h-4v5c3 0 4-2 4-5ZM12 13v4m-4 3h8M9 17h6"/></svg>`,
   heart: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg>`,
   mail: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>`,
+  list: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>`,
   arrow: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>`,
 };
 
@@ -25,35 +26,6 @@ const leagueData = {
       signature: "With love (and full veto power),",
       author: "Commissioner Adham",
     },
-    polls: [
-      {
-        id: "basketball-playoffs",
-        question: "How many teams should make the playoffs?",
-        deadline: "Closes Friday",
-        options: ["4 teams", "6 teams", "8 teams"],
-        votes: [3, 7, 2],
-      },
-      {
-        id: "basketball-ir",
-        question: "Add a second IR+ roster spot?",
-        deadline: "Closes Sunday",
-        options: ["Yes, absolutely", "No, embrace the pain"],
-        votes: [9, 4],
-      },
-    ],
-    trades: [
-      { time: "2 HOURS AGO", a: "The Rim Reapers", b: "Splash Cousins", give: "J. Tatum + 2027 3rd", get: "S. Gilgeous-Alexander", tag: "BLOCKBUSTER" },
-      { time: "YESTERDAY", a: "Air Ballers", b: "Dunk Dynasty", give: "T. Haliburton", get: "A. Edwards + $12 FAAB", tag: "ACCEPTED" },
-      { time: "SEP 29", a: "Splash Cousins", b: "The Paint Saints", give: "B. Adebayo", get: "L. Markkanen", tag: "ACCEPTED" },
-    ],
-    standings: [
-      ["The Rim Reapers", "Adham", "14–3", "1,842"],
-      ["Splash Cousins", "Marco", "12–5", "1,761"],
-      ["Dunk Dynasty", "Jules", "10–7", "1,694"],
-      ["The Paint Saints", "Nico", "9–8", "1,622"],
-      ["Air Ballers", "Sam", "7–10", "1,511"],
-      ["Brick City", "Eli", "5–12", "1,403"],
-    ],
   },
   football: {
     label: "Football",
@@ -67,42 +39,49 @@ const leagueData = {
       signature: "Proud to be your commissioner,",
       author: "Adham",
     },
-    polls: [
-      {
-        id: "football-deadline",
-        question: "Move the trade deadline back one week?",
-        deadline: "Closes Thursday",
-        options: ["Move it back", "Keep it as-is"],
-        votes: [6, 5],
-      },
-      {
-        id: "football-kicker",
-        question: "The eternal question: keep kickers?",
-        deadline: "Closes Monday",
-        options: ["Keep the chaos", "Abolish kickers"],
-        votes: [4, 8],
-      },
-    ],
-    trades: [
-      { time: "48 MIN AGO", a: "Sunday Scaries", b: "Fourth & Wrong", give: "J. Jefferson", get: "J. Gibbs + 2027 1st", tag: "BREAKING" },
-      { time: "MONDAY", a: "Blitz Brigade", b: "End Zone Empire", give: "L. Jackson", get: "J. Burrow + D. Smith", tag: "ACCEPTED" },
-      { time: "SEP 28", a: "Fourth & Wrong", b: "Bench Mob", give: "D. Henry", get: "2027 2nd + $18 FAAB", tag: "ACCEPTED" },
-    ],
-    standings: [
-      ["Sunday Scaries", "Priya", "5–0", "682"],
-      ["Fourth & Wrong", "Adham", "4–1", "641"],
-      ["Blitz Brigade", "Chris", "3–2", "608"],
-      ["End Zone Empire", "Nadia", "3–2", "594"],
-      ["Bench Mob", "Omar", "2–3", "551"],
-      ["Hail Mary Heroes", "Dev", "1–4", "497"],
-    ],
   },
 };
 
 let activeLeague = "basketball";
 let activeTab = "announcement";
+let isCommish = false;
+let editingEnabled = false;
+const leagueState = {};
+const rankings = { data: null, loading: false, query: "", position: "ALL", sort: "rank", shown: 50 };
+let voterName = readStorage("natscommish:name") || "";
 
 const app = document.querySelector("#app");
+
+const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+
+function readStorage(key) {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+
+function writeStorage(key, value) {
+  try { localStorage.setItem(key, value); } catch { /* private mode */ }
+}
+
+async function api(path, options = {}) {
+  const response = await fetch(`/api${path}`, {
+    ...options,
+    credentials: "same-origin",
+    headers: options.body ? { "Content-Type": "application/json" } : undefined,
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "The league office is not answering right now.");
+  return data;
+}
+
+async function loadLeague(key = activeLeague) {
+  try {
+    leagueState[key] = await api(`/leagues/${key}`);
+  } catch (error) {
+    leagueState[key] = { error: error.message, polls: [], trades: [], standings: [] };
+  }
+  if (key === activeLeague) renderTab();
+}
 
 function renderShell() {
   app.innerHTML = `
@@ -112,7 +91,9 @@ function renderShell() {
         <span class="brand-mark">NC</span>
         <span><strong>NATS</strong><em>COMMISH</em></span>
       </a>
-      <div class="live-pill"><span></span> League HQ is live</div>
+      ${isCommish
+        ? `<button class="live-pill commish-pill" id="logout-button"><span></span> Commish mode · Log out</button>`
+        : `<div class="live-pill"><span></span> League HQ is live</div>`}
       <button class="feedback-trigger">${icons.mail}<span>Complaints & ideas</span></button>
     </header>
 
@@ -148,6 +129,7 @@ function renderShell() {
       <p>Built for the league. Run by the Commish. Fueled by controversy.</p>
       <button class="feedback-trigger footer-link">Got a complaint? We know you do.</button>
       <p class="copyright">© 2026 Nats Commish · natscommish.com</p>
+      ${isCommish || !editingEnabled ? "" : `<button class="commish-login-link" id="login-open">Commish login</button>`}
     </footer>
 
     <dialog id="feedback-modal">
@@ -171,9 +153,36 @@ function renderShell() {
         <small>This opens your email app and addresses the message to adham@natscommish.com.</small>
       </form>
     </dialog>
+
+    <dialog id="login-modal">
+      <button class="modal-close" aria-label="Close login">×</button>
+      <p class="eyebrow">COMMISSIONER ONLY</p>
+      <h2>Prove it.</h2>
+      <p>Log in to edit the Trade Wire and the Leaderboard.</p>
+      <form id="login-form" class="single-form">
+        <label>Password <input name="password" type="password" required autocomplete="current-password" /></label>
+        <button type="submit" class="send-button">Unlock Commish mode ${icons.arrow}</button>
+        <small class="form-error" id="login-error"></small>
+      </form>
+    </dialog>
+
+    <dialog id="player-modal" class="player-modal">
+      <button class="modal-close" aria-label="Close player card">×</button>
+      <div id="player-card"></div>
+    </dialog>
   `;
   renderLeague();
   bindShellEvents();
+}
+
+function tabsFor(key) {
+  return [
+    ["announcement", icons.megaphone, "Commish Announcement"],
+    ["polls", icons.poll, "League Polls"],
+    ["trades", icons.trade, "Trade Wire"],
+    ["leaderboard", icons.trophy, "Leaderboard"],
+    ...(key === "basketball" ? [["rankings", icons.list, "ADP & Rankings"]] : []),
+  ];
 }
 
 function renderLeague() {
@@ -188,12 +197,7 @@ function renderLeague() {
       <span class="season-badge">${league.season}</span>
     </div>
     <nav class="content-tabs" aria-label="${league.label} league pages">
-      ${[
-        ["announcement", icons.megaphone, "Commish Announcement"],
-        ["polls", icons.poll, "League Polls"],
-        ["trades", icons.trade, "Trade Wire"],
-        ["leaderboard", icons.trophy, "Leaderboard"],
-      ].map(([key, icon, label]) => `
+      ${tabsFor(activeLeague).map(([key, icon, label]) => `
         <button class="${activeTab === key ? "active" : ""}" data-tab="${key}" ${activeTab === key ? 'aria-current="page"' : ""}>
           ${icon}<span>${label}</span>
         </button>
@@ -210,9 +214,14 @@ function renderLeague() {
   });
 }
 
+const loadingPanel = (label) => `<div class="empty-state"><p class="eyebrow">ONE SEC</p><h4>Loading ${label}…</h4></div>`;
+const errorBanner = (message) => message ? `<p class="form-error banner">${esc(message)}</p>` : "";
+
 function renderTab() {
   const league = leagueData[activeLeague];
+  const state = leagueState[activeLeague];
   const panel = document.querySelector("#tab-panel");
+  if (!panel) return;
   const renderers = {
     announcement: () => `
       <article class="announcement-card">
@@ -232,76 +241,268 @@ function renderTab() {
       </article>
       <div class="next-note"><span>${icons.heart}</span><p>A new note from the commissioner lands here every day.</p></div>
     `,
-    polls: () => `
+    polls: () => !state ? loadingPanel("polls") : `
       <div class="section-intro">
         <div><p class="eyebrow">DEMOCRACY, SORT OF</p><h3>Your vote matters.</h3></div>
-        <span>${league.polls.length} OPEN POLLS</span>
+        <span>${state.polls.length} OPEN POLLS</span>
       </div>
+      ${errorBanner(state.error)}
+      <form class="voter-bar" id="voter-form">
+        <label>Voting as <input name="voter" value="${esc(voterName)}" maxlength="40" placeholder="Your name (one vote per person)" autocomplete="name" /></label>
+        <small>Every vote is counted on the league server: one per person, per poll, with your name attached.</small>
+      </form>
       <div class="poll-grid">
-        ${league.polls.map((poll, index) => renderPoll(poll, index)).join("")}
+        ${state.polls.map((poll, index) => renderPoll(poll, index)).join("")}
       </div>
     `,
-    trades: () => `
+    trades: () => !state ? loadingPanel("the wire") : `
       <div class="section-intro">
         <div><p class="eyebrow">LIVE FROM THE WIRE</p><h3>Deals, steals & bad decisions.</h3></div>
         <span class="pulse-label"><i></i> LIVE FEED</span>
       </div>
+      ${errorBanner(state.error)}
+      ${isCommish ? renderTradeEditor() : ""}
       <div class="trade-list">
-        ${league.trades.map((trade) => `
+        ${state.trades.length ? state.trades.map((trade) => `
           <article class="trade-card">
-            <div class="trade-time"><span>${trade.tag}</span><time>${trade.time}</time></div>
-            <div class="trade-team"><b>${trade.a}</b><small>SENDS</small><p>${trade.give}</p></div>
+            <div class="trade-time"><span>${esc(trade.tag)}</span><time>${esc(trade.time)}</time></div>
+            <div class="trade-team"><b>${esc(trade.a)}</b><small>SENDS</small><p>${esc(trade.give)}</p></div>
             <div class="trade-arrows">${icons.trade}<span>TRADE</span></div>
-            <div class="trade-team right"><b>${trade.b}</b><small>SENDS</small><p>${trade.get}</p></div>
+            <div class="trade-team right"><b>${esc(trade.b)}</b><small>SENDS</small><p>${esc(trade.get)}</p></div>
+            ${isCommish ? `<button class="delete-chip" data-delete-trade="${trade.id}" aria-label="Delete trade">×</button>` : ""}
           </article>
-        `).join("")}
+        `).join("") : `<div class="empty-state"><p class="eyebrow">QUIET ON THE WIRE</p><h4>No trades yet.</h4><p>The Commish posts every official deal here.</p></div>`}
       </div>
     `,
-    leaderboard: () => `
+    leaderboard: () => !state ? loadingPanel("standings") : `
       <div class="section-intro">
         <div><p class="eyebrow">POWER RANKINGS</p><h3>Receipts don't lie.</h3></div>
-        <span>UPDATED TODAY</span>
+        <span>${state.standings.length ? "OFFICIAL STANDINGS" : "COMING SOON"}</span>
       </div>
-      <div class="leaderboard">
-        <div class="table-header"><span>RANK</span><span>TEAM / MANAGER</span><span>RECORD</span><span>POINTS</span></div>
-        ${league.standings.map((team, index) => `
-          <div class="standing-row ${index < 3 ? `podium rank-${index + 1}` : ""}">
-            <span class="rank">${index < 3 ? icons.trophy : ""}<b>${String(index + 1).padStart(2, "0")}</b></span>
-            <span class="team-name"><b>${team[0]}</b><small>${team[1]}</small></span>
-            <strong>${team[2]}</strong>
-            <strong>${team[3]}</strong>
-          </div>
-        `).join("")}
-      </div>
+      ${errorBanner(state.error)}
+      ${isCommish ? renderStandingsEditor(state.standings) : state.standings.length ? `
+        <div class="leaderboard">
+          <div class="table-header"><span>RANK</span><span>TEAM / MANAGER</span><span>RECORD</span><span>POINTS</span></div>
+          ${state.standings.map((team, index) => `
+            <div class="standing-row ${index < 3 ? `podium rank-${index + 1}` : ""}">
+              <span class="rank">${index < 3 ? icons.trophy : ""}<b>${String(index + 1).padStart(2, "0")}</b></span>
+              <span class="team-name"><b>${esc(team.team)}</b><small>${esc(team.manager)}</small></span>
+              <strong>${esc(team.record)}</strong>
+              <strong>${esc(team.points)}</strong>
+            </div>
+          `).join("")}
+        </div>
+      ` : `<div class="empty-state"><p class="eyebrow">NO RECEIPTS YET</p><h4>The leaderboard is empty.</h4><p>Standings go up once the Commish posts them.</p></div>`}
     `,
+    rankings: () => renderRankings(),
   };
   panel.innerHTML = renderers[activeTab]();
   bindTabEvents();
 }
 
 function renderPoll(poll, index) {
-  const savedVote = localStorage.getItem(`natscommish:${poll.id}`);
-  const votes = [...poll.votes];
-  if (savedVote !== null) votes[Number(savedVote)] += 1;
-  const total = votes.reduce((sum, vote) => sum + vote, 0);
+  const voted = poll.myVote !== null;
+  const total = poll.total;
   return `
-    <article class="poll-card" data-poll="${poll.id}">
+    <article class="poll-card" data-poll="${esc(poll.id)}">
       <div class="poll-number">0${index + 1}</div>
-      <div class="poll-meta"><span>${poll.deadline}</span><b>${total} VOTES</b></div>
-      <h4>${poll.question}</h4>
+      <div class="poll-meta"><span>${esc(poll.deadline)}</span><b>${total} ${total === 1 ? "VOTE" : "VOTES"}</b></div>
+      <h4>${esc(poll.question)}</h4>
       <div class="poll-options">
         ${poll.options.map((option, optionIndex) => {
-          const percent = Math.round((votes[optionIndex] / total) * 100);
+          const percent = poll.votes && total ? Math.round((poll.votes[optionIndex] / total) * 100) : 0;
           return `
-            <button data-option="${optionIndex}" ${savedVote !== null ? "disabled" : ""} class="${Number(savedVote) === optionIndex ? "chosen" : ""}">
-              <span class="option-radio"></span><b>${option}</b>
-              ${savedVote !== null ? `<span class="poll-result" style="--result:${percent}%"><i></i><strong>${percent}%</strong></span>` : ""}
+            <button data-option="${optionIndex}" ${voted ? "disabled" : ""} class="${poll.myVote === optionIndex ? "chosen" : ""}">
+              <span class="option-radio"></span><b>${esc(option)}</b>
+              ${poll.votes ? `<span class="poll-result" style="--result:${percent}%"><i></i><strong>${percent}%${isCommish ? ` · ${poll.votes[optionIndex]}` : ""}</strong></span>` : ""}
             </button>`;
         }).join("")}
       </div>
-      <p class="vote-status">${savedVote !== null ? "✓ VOTE LOCKED IN" : "CHOOSE WISELY. YOUR NAME IS ATTACHED."}</p>
+      <p class="vote-status">${voted ? "✓ VOTE LOCKED IN" : "CHOOSE WISELY. YOUR NAME IS ATTACHED."}</p>
+      ${isCommish && poll.voters?.length ? `
+        <div class="voter-list">
+          <p class="eyebrow">WHO VOTED</p>
+          ${poll.voters.map((voter) => `<span>${esc(voter.name)} → ${esc(poll.options[voter.option])}<button data-remove-vote="${esc(voter.name)}" aria-label="Remove ${esc(voter.name)}'s vote">×</button></span>`).join("")}
+        </div>` : ""}
     </article>
   `;
+}
+
+function renderTradeEditor() {
+  return `
+    <form class="commish-editor" id="trade-form">
+      <p class="eyebrow">COMMISH ONLY · POST A TRADE</p>
+      <div class="editor-grid">
+        <label>Team A <input name="a" required maxlength="60" /></label>
+        <label>Team A sends <input name="give" required maxlength="160" /></label>
+        <label>Team B <input name="b" required maxlength="60" /></label>
+        <label>Team B sends <input name="get" required maxlength="160" /></label>
+        <label>Tag <input name="tag" maxlength="20" placeholder="ACCEPTED" /></label>
+        <label>When <input name="time" maxlength="30" placeholder="Defaults to today" /></label>
+      </div>
+      <button type="submit" class="send-button">Post to the wire ${icons.arrow}</button>
+      <small class="form-error" id="trade-error"></small>
+    </form>
+  `;
+}
+
+function renderStandingsEditor(standings) {
+  const rows = standings.length ? standings : [{ team: "", manager: "", record: "", points: "" }];
+  return `
+    <form class="commish-editor" id="standings-form">
+      <p class="eyebrow">COMMISH ONLY · EDIT THE LEADERBOARD (TOP ROW = 1ST PLACE)</p>
+      <div class="standings-editor">
+        <div class="standings-edit-row header"><span>#</span><span>Team</span><span>Manager</span><span>Record</span><span>Points</span><span></span></div>
+        ${rows.map((row, index) => `
+          <div class="standings-edit-row" data-row>
+            <span>${index + 1}</span>
+            <input name="team" value="${esc(row.team)}" maxlength="60" aria-label="Team" />
+            <input name="manager" value="${esc(row.manager)}" maxlength="40" aria-label="Manager" />
+            <input name="record" value="${esc(row.record)}" maxlength="20" aria-label="Record" placeholder="0–0" />
+            <input name="points" value="${esc(row.points)}" maxlength="20" aria-label="Points" />
+            <button type="button" class="delete-chip" data-remove-row aria-label="Remove row">×</button>
+          </div>
+        `).join("")}
+      </div>
+      <div class="editor-actions">
+        <button type="button" class="ghost-button" id="add-standing">+ Add team</button>
+        <button type="submit" class="send-button">Save leaderboard ${icons.arrow}</button>
+      </div>
+      <small class="form-error" id="standings-error"></small>
+    </form>
+  `;
+}
+
+const injuryLabels = { ACTIVE: "", OUT: "OUT", DAY_TO_DAY: "DTD", INJURY_RESERVE: "IR", SUSPENSION: "SUSP", QUESTIONABLE: "Q", DOUBTFUL: "D", PROBABLE: "P", INJURED: "INJ" };
+const injuryText = (status) => status && status !== "ACTIVE" ? status.replace(/_/g, " ") : "Healthy";
+const headshot = (id) => `https://a.espncdn.com/combiner/i?img=/i/headshots/nba/players/full/${id}.png&w=96&h=70&cb=1`;
+const fmt = (value, digits = 1) => value === null || value === undefined ? "—" : Number(value).toFixed(digits);
+
+function loadRankings() {
+  if (rankings.data || rankings.loading) return;
+  rankings.loading = true;
+  api("/players")
+    .then((data) => { rankings.data = data; })
+    .catch((error) => { rankings.data = { players: [], error: error.message }; })
+    .finally(() => {
+      rankings.loading = false;
+      if (activeTab === "rankings") renderTab();
+    });
+}
+
+function filteredPlayers() {
+  const query = rankings.query.trim().toLowerCase();
+  const players = (rankings.data?.players || []).filter((player) =>
+    (rankings.position === "ALL" || player.position === rankings.position) &&
+    (!query || player.name.toLowerCase().includes(query) || player.team.toLowerCase() === query));
+  if (rankings.sort === "adp") return [...players].sort((a, b) => (a.adp ?? 999) - (b.adp ?? 999));
+  return players;
+}
+
+function renderRankings() {
+  if (!rankings.data) {
+    loadRankings();
+    return loadingPanel("ESPN rankings");
+  }
+  const { updatedAt, season, error } = rankings.data;
+  const players = filteredPlayers();
+  const updated = updatedAt ? new Date(updatedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : null;
+  return `
+    <div class="section-intro">
+      <div><p class="eyebrow">DRAFT ROOM INTEL</p><h3>ADP & draft rankings.</h3></div>
+      <span>${updated ? `ESPN · UPDATED ${esc(updated.toUpperCase())}` : "ESPN"}</span>
+    </div>
+    ${!rankings.data.players.length ? `<div class="empty-state"><p class="eyebrow">WAITING ON ESPN</p><h4>Rankings are on the way.</h4><p>The server pulls ESPN's ADP and rankings on a schedule. ${error ? `Last attempt: ${esc(error)}` : "Check back shortly."}</p>${isCommish ? `<button class="ghost-button" id="refresh-players">Pull from ESPN now</button>` : ""}</div>` : `
+      <div class="rank-controls">
+        <input type="search" id="rank-search" value="${esc(rankings.query)}" placeholder="Search players or team (e.g. LAL)" aria-label="Search players" />
+        <div class="chip-row" role="group" aria-label="Filter by position">
+          ${["ALL", "PG", "SG", "SF", "PF", "C"].map((pos) => `<button class="${rankings.position === pos ? "active" : ""}" data-position="${pos}">${pos}</button>`).join("")}
+        </div>
+        <div class="chip-row" role="group" aria-label="Sort players">
+          <button class="${rankings.sort === "rank" ? "active" : ""}" data-sort="rank">ESPN Rank</button>
+          <button class="${rankings.sort === "adp" ? "active" : ""}" data-sort="adp">ADP</button>
+        </div>
+      </div>
+      <div class="rank-table">
+        <div class="rank-row rank-head"><span>RANK</span><span>PLAYER</span><span>ADP</span><span>ROSTERED</span><span>PTS</span><span>REB</span><span>AST</span></div>
+        ${players.slice(0, rankings.shown).map((player) => `
+          <button class="rank-row" data-player="${player.id}">
+            <span class="rank-num">${player.espnRank ?? "—"}</span>
+            <span class="rank-player">
+              <img src="${headshot(player.id)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'" />
+              <span><b>${esc(player.name)}</b><small>${esc(player.team)} · ${esc(player.position)}${injuryLabels[player.injuryStatus] ? ` <em class="injury-tag">${injuryLabels[player.injuryStatus]}</em>` : ""}</small></span>
+            </span>
+            <span>${fmt(player.adp)}</span>
+            <span>${player.rostered === null ? "—" : `${fmt(player.rostered)}%`}</span>
+            <span>${fmt(player.pts)}</span>
+            <span>${fmt(player.reb)}</span>
+            <span>${fmt(player.ast)}</span>
+          </button>
+        `).join("") || `<div class="empty-state slim"><h4>No players match.</h4></div>`}
+      </div>
+      ${players.length > rankings.shown ? `<button class="ghost-button show-more" id="show-more">Show more players</button>` : ""}
+      <p class="rank-note">Rankings and ADP from ESPN Fantasy Basketball (${season - 1}–${String(season).slice(2)}). Stats are ESPN projections per game, or last season when no projection exists. Tap a player for the full card.</p>
+    `}
+  `;
+}
+
+function statTable(title, stats) {
+  if (!stats) return "";
+  const cells = [["PTS", stats.pts], ["REB", stats.reb], ["AST", stats.ast], ["STL", stats.stl], ["BLK", stats.blk], ["3PM", stats.threes], ["TO", stats.to], ["MIN", stats.min]];
+  return `
+    <div class="stat-block">
+      <p class="eyebrow">${title}</p>
+      <div class="stat-grid">
+        ${cells.map(([label, value]) => `<span><b>${fmt(value)}</b><small>${label}</small></span>`).join("")}
+        <span><b>${stats.fgPct === undefined ? "—" : (stats.fgPct * 100).toFixed(1)}</b><small>FG%</small></span>
+        <span><b>${stats.ftPct === undefined ? "—" : (stats.ftPct * 100).toFixed(1)}</b><small>FT%</small></span>
+      </div>
+    </div>
+  `;
+}
+
+async function openPlayer(id) {
+  const modal = document.querySelector("#player-modal");
+  const card = document.querySelector("#player-card");
+  card.innerHTML = `<p class="eyebrow">PULLING THE FILE…</p>`;
+  modal.showModal();
+  try {
+    const { player, news } = await api(`/players/${id}`);
+    const injured = player.injuryStatus && player.injuryStatus !== "ACTIVE";
+    card.innerHTML = `
+      <div class="player-top">
+        <img src="https://a.espncdn.com/combiner/i?img=/i/headshots/nba/players/full/${player.id}.png&w=350&h=254" alt="" onerror="this.style.display='none'" />
+        <div>
+          <p class="eyebrow">${esc(player.team)} · ${esc(player.position)}${player.jersey ? ` · #${esc(player.jersey)}` : ""}</p>
+          <h2>${esc(player.name)}</h2>
+          <span class="health-badge ${injured ? "hurt" : ""}">${esc(injuryText(player.injuryStatus))}</span>
+        </div>
+      </div>
+      <div class="player-facts">
+        <span><b>${player.espnRank ?? "—"}</b><small>ESPN RANK</small></span>
+        <span><b>${fmt(player.adp)}</b><small>ADP</small></span>
+        <span><b>${player.rotoRank ?? "—"}</b><small>ROTO RANK</small></span>
+        <span><b>${player.rostered === null ? "—" : `${fmt(player.rostered)}%`}</b><small>ROSTERED</small></span>
+      </div>
+      ${statTable("THIS SEASON · PER GAME", player.thisSeason)}
+      ${statTable("PROJECTED · PER GAME", player.projected)}
+      ${statTable("LAST SEASON · PER GAME", player.lastSeason)}
+      ${player.outlook ? `<div class="player-outlook"><p class="eyebrow">ESPN OUTLOOK</p><p>${esc(player.outlook)}</p></div>` : ""}
+      <div class="player-news">
+        <p class="eyebrow">LATEST NEWS</p>
+        ${news.length ? news.map((item) => `
+          <article>
+            ${item.published ? `<time>${esc(new Date(item.published).toLocaleDateString("en-US", { month: "short", day: "numeric" }))}</time>` : ""}
+            <h4>${esc(item.headline)}</h4>
+            ${item.body ? `<p>${esc(item.body)}</p>` : ""}
+            ${item.link ? `<a href="${esc(item.link)}" target="_blank" rel="noopener">Read on ESPN</a>` : ""}
+          </article>`).join("") : `<p class="muted">No recent news for this player.</p>`}
+      </div>
+      <a class="espn-link" href="https://www.espn.com/nba/player/_/id/${player.id}" target="_blank" rel="noopener">Full profile on ESPN ${icons.arrow}</a>
+    `;
+  } catch (error) {
+    card.innerHTML = `<p class="form-error">${esc(error.message)}</p>`;
+  }
 }
 
 function bindShellEvents() {
@@ -309,17 +510,20 @@ function bindShellEvents() {
     button.addEventListener("click", () => {
       activeLeague = button.dataset.league;
       activeTab = "announcement";
+      if (!leagueState[activeLeague]) loadLeague(activeLeague);
       renderShell();
       document.querySelector(".league-shell").scrollIntoView({ behavior: "smooth", block: "start" });
     });
   });
 
+  document.querySelectorAll("dialog").forEach((modal) => {
+    modal.querySelector(".modal-close").addEventListener("click", () => modal.close());
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) modal.close();
+    });
+  });
   const modal = document.querySelector("#feedback-modal");
   document.querySelectorAll(".feedback-trigger").forEach((button) => button.addEventListener("click", () => modal.showModal()));
-  document.querySelector(".modal-close").addEventListener("click", () => modal.close());
-  modal.addEventListener("click", (event) => {
-    if (event.target === modal) modal.close();
-  });
   document.querySelector("#feedback-form").addEventListener("submit", (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -327,16 +531,149 @@ function bindShellEvents() {
     const body = encodeURIComponent(`From: ${data.get("name")}\nLeague: ${data.get("league")}\n\n${data.get("message")}`);
     window.location.href = `mailto:adham@natscommish.com?subject=${subject}&body=${body}`;
   });
-}
 
-function bindTabEvents() {
-  document.querySelectorAll("[data-poll] button").forEach((button) => {
-    button.addEventListener("click", () => {
-      const pollId = button.closest("[data-poll]").dataset.poll;
-      localStorage.setItem(`natscommish:${pollId}`, button.dataset.option);
-      renderTab();
-    });
+  document.querySelector("#login-open")?.addEventListener("click", () => document.querySelector("#login-modal").showModal());
+  document.querySelector("#login-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      await api("/login", { method: "POST", body: { password: new FormData(event.currentTarget).get("password") } });
+      isCommish = true;
+      await loadLeague();
+      renderShell();
+    } catch (error) {
+      document.querySelector("#login-error").textContent = error.message;
+    }
+  });
+  document.querySelector("#logout-button")?.addEventListener("click", async () => {
+    await api("/logout", { method: "POST" }).catch(() => {});
+    isCommish = false;
+    await loadLeague();
+    renderShell();
   });
 }
 
+function bindTabEvents() {
+  const voterInput = document.querySelector("#voter-form input");
+  voterInput?.addEventListener("input", () => {
+    voterName = voterInput.value;
+    writeStorage("natscommish:name", voterName);
+  });
+  document.querySelector("#voter-form")?.addEventListener("submit", (event) => event.preventDefault());
+
+  document.querySelectorAll("[data-poll] [data-option]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const card = button.closest("[data-poll]");
+      const status = card.querySelector(".vote-status");
+      if (voterName.trim().length < 2) {
+        status.textContent = "ADD YOUR NAME ABOVE FIRST, THEN VOTE.";
+        status.classList.add("form-error");
+        voterInput.focus();
+        return;
+      }
+      card.querySelectorAll("[data-option]").forEach((option) => { option.disabled = true; });
+      try {
+        const { polls } = await api(`/polls/${card.dataset.poll}/vote`, { method: "POST", body: { option: Number(button.dataset.option), name: voterName } });
+        leagueState[activeLeague].polls = polls;
+        renderTab();
+      } catch (error) {
+        await loadLeague();
+        const freshStatus = document.querySelector(`[data-poll="${card.dataset.poll}"] .vote-status`);
+        if (freshStatus) {
+          freshStatus.textContent = error.message.toUpperCase();
+          freshStatus.classList.add("form-error");
+        }
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-remove-vote]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!confirm(`Remove ${button.dataset.removeVote}'s vote?`)) return;
+      await api(`/polls/${button.closest("[data-poll]").dataset.poll}/votes/${encodeURIComponent(button.dataset.removeVote)}`, { method: "DELETE" }).catch((error) => alert(error.message));
+      loadLeague();
+    });
+  });
+
+  document.querySelector("#trade-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      await api(`/leagues/${activeLeague}/trades`, { method: "POST", body: Object.fromEntries(new FormData(event.currentTarget)) });
+      loadLeague();
+    } catch (error) {
+      document.querySelector("#trade-error").textContent = error.message;
+    }
+  });
+  document.querySelectorAll("[data-delete-trade]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!confirm("Delete this trade from the wire?")) return;
+      await api(`/trades/${button.dataset.deleteTrade}`, { method: "DELETE" }).catch((error) => alert(error.message));
+      loadLeague();
+    });
+  });
+
+  const standingsForm = document.querySelector("#standings-form");
+  if (standingsForm) {
+    const collect = () => [...standingsForm.querySelectorAll("[data-row]")].map((row) =>
+      Object.fromEntries([...row.querySelectorAll("input")].map((input) => [input.name, input.value])));
+    const redraw = (rows) => {
+      leagueState[activeLeague].standings = rows;
+      renderTab();
+    };
+    document.querySelector("#add-standing").addEventListener("click", () => redraw([...collect(), { team: "", manager: "", record: "", points: "" }]));
+    standingsForm.querySelectorAll("[data-remove-row]").forEach((button, index) => {
+      button.addEventListener("click", () => redraw(collect().filter((_, rowIndex) => rowIndex !== index)));
+    });
+    standingsForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        await api(`/leagues/${activeLeague}/standings`, { method: "PUT", body: { standings: collect() } });
+        document.querySelector("#standings-error").textContent = "Saved.";
+        loadLeague();
+      } catch (error) {
+        document.querySelector("#standings-error").textContent = error.message;
+      }
+    });
+  }
+
+  const search = document.querySelector("#rank-search");
+  search?.addEventListener("input", () => {
+    rankings.query = search.value;
+    rankings.shown = 50;
+    renderTab();
+    const next = document.querySelector("#rank-search");
+    next.focus();
+    next.setSelectionRange(next.value.length, next.value.length);
+  });
+  document.querySelectorAll("[data-position]").forEach((button) => button.addEventListener("click", () => {
+    rankings.position = button.dataset.position;
+    rankings.shown = 50;
+    renderTab();
+  }));
+  document.querySelectorAll("[data-sort]").forEach((button) => button.addEventListener("click", () => {
+    rankings.sort = button.dataset.sort;
+    renderTab();
+  }));
+  document.querySelector("#show-more")?.addEventListener("click", () => {
+    rankings.shown += 50;
+    renderTab();
+  });
+  document.querySelector("#refresh-players")?.addEventListener("click", async (event) => {
+    event.currentTarget.disabled = true;
+    event.currentTarget.textContent = "Pulling from ESPN…";
+    await api("/players/refresh", { method: "POST" }).catch(() => {});
+    rankings.data = null;
+    renderTab();
+  });
+  document.querySelectorAll("[data-player]").forEach((button) => button.addEventListener("click", () => openPlayer(button.dataset.player)));
+}
+
 renderShell();
+loadLeague();
+api("/session")
+  .then((session) => {
+    isCommish = session.commish;
+    editingEnabled = session.editingEnabled;
+    if (isCommish) loadLeague();
+    renderShell();
+  })
+  .catch(() => {});

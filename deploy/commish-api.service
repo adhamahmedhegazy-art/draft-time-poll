@@ -1,0 +1,20 @@
+[Unit]
+Description=Nats Commish league server
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/nats-commish
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning server/index.js
+Environment=PORT=8787
+Environment=COMMISH_DB=/var/lib/nats-commish/commish.db
+EnvironmentFile=/etc/nats-commish.env
+StateDirectory=nats-commish
+Restart=on-failure
+# Keep it small on a weak box.
+MemoryMax=150M
+Environment=NODE_OPTIONS=--max-old-space-size=96
+
+[Install]
+WantedBy=multi-user.target
