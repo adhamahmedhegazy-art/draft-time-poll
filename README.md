@@ -71,6 +71,6 @@ Caddy obtains and renews HTTPS certificates automatically after DNS is configure
 
 The service file caps the server at 150 MB of memory; in practice it idles well under that.
 
-The original site files from before the server was added are in `backup-original/`.
+The original site, from before the server was added, is the first commit in this repository.
 
 The feedback form uses the visitor's email application to send to `adham@natscommish.com`. Direct background delivery requires adding a server-side mail endpoint or form service.
