@@ -10,7 +10,9 @@ The server has no npm dependencies: it uses Node's built-in `node:http` and `nod
 - **League Polls**: votes are saved in SQLite. Each person votes once per poll: the browser gets a voter cookie and the voter's name is attached, and both are checked. Results show after you vote. The commissioner sees who voted and can remove a bogus vote.
 - **Trade Wire and Leaderboard**: only the commissioner can add or edit them. Use the small "Commish login" link in the footer, then edit forms appear on those tabs.
 - **ADP & Rankings** (basketball tab): ESPN Fantasy Basketball rankings, ADP and stats for the top 300 players, pulled from ESPN every 12 hours and cached in SQLite. Page views never call ESPN.
-- **Player cards**: click any player in the rankings for stats, injury status, ESPN outlook and recent news. News is fetched from ESPN the first time a card is opened and cached for 2 hours.
+- **Football Top 100** (football tab): ESPN's PPR top 100 with ADP, % rostered, season points, points per game and projections. Refreshed the same way.
+- **Top performers**: basketball shows today's game leaders (or last night's before tip-off); football shows this week's passing, rushing and receiving leaders. One ESPN scoreboard request, cached for 30 minutes.
+- **Player cards**: click any player in the rankings or top performers for stats, injury status, ESPN outlook and recent news. News is fetched from ESPN the first time a card is opened and cached for 2 hours.
 
 ## Local development
 
@@ -64,7 +66,9 @@ Caddy obtains and renews HTTPS certificates automatically after DNS is configure
 | `PORT` | `8787` | API port (localhost only). |
 | `COMMISH_DB` | `data/commish.db` | SQLite file location. |
 | `ESPN_REFRESH_HOURS` | `12` | How often rankings are re-pulled from ESPN. |
-| `ESPN_PLAYER_LIMIT` | `300` | How many ranked players to cache. |
+| `ESPN_PLAYER_LIMIT` | `300` | How many ranked basketball players to cache. |
+| `ESPN_FOOTBALL_PLAYER_LIMIT` | `100` | How many ranked football players to cache. |
+| `ESPN_PERFORMERS_TTL_MINUTES` | `30` | How long top performers stay cached. |
 | `ESPN_NEWS_TTL_MINUTES` | `120` | How long a player's news stays cached. |
 | `ESPN_SEASON` | auto | Force an ESPN season year (ESPN calls 2026–27 "2027"). |
 | `ESPN_DISABLED` | unset | Set to `1` to never call ESPN. |

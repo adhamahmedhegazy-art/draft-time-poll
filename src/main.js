@@ -9,6 +9,7 @@ const icons = {
   trophy: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0V4Zm-4 1h4v5C5 10 4 8 4 5Zm16 0h-4v5c3 0 4-2 4-5ZM12 13v4m-4 3h8M9 17h6"/></svg>`,
   heart: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg>`,
   mail: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>`,
+  star: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg>`,
   list: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>`,
   arrow: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>`,
 };
@@ -47,7 +48,11 @@ let activeTab = "announcement";
 let isCommish = false;
 let editingEnabled = false;
 const leagueState = {};
-const rankings = { data: null, loading: false, query: "", position: "ALL", sort: "rank", shown: 50 };
+const newRankings = () => ({ data: null, loading: false, query: "", position: "ALL", sort: "rank", shown: 50 });
+const rankingsBySport = { basketball: newRankings(), football: newRankings() };
+const performersBySport = { basketball: { data: null, loading: false }, football: { data: null, loading: false } };
+let rankings = rankingsBySport[activeLeague];
+let performers = performersBySport[activeLeague];
 let voterName = readStorage("natscommish:name") || "";
 
 const app = document.querySelector("#app");
@@ -85,29 +90,22 @@ async function loadLeague(key = activeLeague) {
 
 function renderShell() {
   app.innerHTML = `
-    <div class="noise"></div>
     <header class="site-header">
       <a class="brand" href="#" aria-label="Nats Commish home">
         <span class="brand-mark">NC</span>
-        <span><strong>NATS</strong><em>COMMISH</em></span>
+        <span><strong>Nats Commish</strong></span>
       </a>
-      ${isCommish
-        ? `<button class="live-pill commish-pill" id="logout-button"><span></span> Commish mode · Log out</button>`
-        : `<div class="live-pill"><span></span> League HQ is live</div>`}
-      <button class="feedback-trigger">${icons.mail}<span>Complaints & ideas</span></button>
+      <div class="header-actions">
+        ${isCommish ? `<button class="text-button" id="logout-button">Commish mode · Log out</button>` : ""}
+        <button class="feedback-trigger">${icons.mail}<span>Feedback</span></button>
+      </div>
     </header>
 
     <main>
       <section class="hero">
-        <div class="hero-sticker">EST. 2026 · ZERO PEACE</div>
-        <p class="eyebrow">YOUR OFFICIAL SOURCE OF TRUTH*</p>
-        <h1>ALL LEAGUE.<br><span>ALL DRAMA.</span></h1>
-        <p class="hero-copy">Announcements, votes, trades, and receipts—served hot by your commissioner.</p>
-        <p class="fine-print">*Unless the commissioner changes his mind.</p>
-        <div class="hero-balls" aria-hidden="true">
-          <span class="ball bball">${icons.basketball}</span>
-          <span class="ball fball">${icons.football}</span>
-        </div>
+        <p class="eyebrow">Fantasy League HQ</p>
+        <h1>All league. All drama.</h1>
+        <p class="hero-copy">Announcements, votes, trades and standings from your commissioner.</p>
       </section>
 
       <section class="league-shell">
@@ -116,7 +114,6 @@ function renderShell() {
             <button class="league-button ${key === activeLeague ? "active" : ""}" data-league="${key}" role="tab" aria-selected="${key === activeLeague}">
               <span class="league-icon">${league.icon}</span>
               <span><small>Fantasy</small>${league.label}</span>
-              <b>${key === activeLeague ? "OPEN" : "ENTER"}</b>
             </button>
           `).join("")}
         </div>
@@ -125,10 +122,8 @@ function renderShell() {
     </main>
 
     <footer>
-      <div class="footer-brand"><span class="brand-mark">NC</span> NATS COMMISH</div>
-      <p>Built for the league. Run by the Commish. Fueled by controversy.</p>
-      <button class="feedback-trigger footer-link">Got a complaint? We know you do.</button>
       <p class="copyright">© 2026 Nats Commish · natscommish.com</p>
+      <button class="feedback-trigger footer-link">Send feedback</button>
       ${isCommish || !editingEnabled ? "" : `<button class="commish-login-link" id="login-open">Commish login</button>`}
     </footer>
 
@@ -181,7 +176,8 @@ function tabsFor(key) {
     ["polls", icons.poll, "League Polls"],
     ["trades", icons.trade, "Trade Wire"],
     ["leaderboard", icons.trophy, "Leaderboard"],
-    ...(key === "basketball" ? [["rankings", icons.list, "ADP & Rankings"]] : []),
+    ["performers", icons.star, key === "basketball" ? "Top Today" : "Top This Week"],
+    ["rankings", icons.list, key === "basketball" ? "ADP & Rankings" : "Top 100"],
   ];
 }
 
@@ -214,7 +210,7 @@ function renderLeague() {
   });
 }
 
-const loadingPanel = (label) => `<div class="empty-state"><p class="eyebrow">ONE SEC</p><h4>Loading ${label}…</h4></div>`;
+const loadingPanel = (label) => `<div class="empty-state"><p class="muted">Loading ${label}…</p></div>`;
 const errorBanner = (message) => message ? `<p class="form-error banner">${esc(message)}</p>` : "";
 
 function renderTab() {
@@ -222,29 +218,23 @@ function renderTab() {
   const state = leagueState[activeLeague];
   const panel = document.querySelector("#tab-panel");
   if (!panel) return;
+  rankings = rankingsBySport[activeLeague];
+  performers = performersBySport[activeLeague];
   const renderers = {
     announcement: () => `
       <article class="announcement-card">
-        <div class="tape tape-left"></div><div class="tape tape-right"></div>
-        <div class="announcement-side">
-          <span class="heart-burst">${icons.heart}</span>
-          <p>FROM THE DESK OF</p>
-          <strong>THE<br>COMMISH</strong>
-          <span class="daily-label">TODAY'S MESSAGE</span>
-        </div>
         <div class="letter">
-          <div class="letter-meta"><span>DAILY ANNOUNCEMENT</span><time>${league.announcement.date}</time></div>
+          <div class="letter-meta"><span>From the Commish</span><time>${league.announcement.date}</time></div>
           <h3>${league.announcement.title}</h3>
           <p>${league.announcement.body}</p>
           <div class="signature"><span>${league.announcement.signature}</span><strong>${league.announcement.author}</strong></div>
         </div>
       </article>
-      <div class="next-note"><span>${icons.heart}</span><p>A new note from the commissioner lands here every day.</p></div>
     `,
     polls: () => !state ? loadingPanel("polls") : `
       <div class="section-intro">
-        <div><p class="eyebrow">DEMOCRACY, SORT OF</p><h3>Your vote matters.</h3></div>
-        <span>${state.polls.length} OPEN POLLS</span>
+        <div><p class="eyebrow">League polls</p><h3>Your vote matters</h3></div>
+        <span>${state.polls.length} open</span>
       </div>
       ${errorBanner(state.error)}
       <form class="voter-bar" id="voter-form">
@@ -257,8 +247,8 @@ function renderTab() {
     `,
     trades: () => !state ? loadingPanel("the wire") : `
       <div class="section-intro">
-        <div><p class="eyebrow">LIVE FROM THE WIRE</p><h3>Deals, steals & bad decisions.</h3></div>
-        <span class="pulse-label"><i></i> LIVE FEED</span>
+        <div><p class="eyebrow">Trade wire</p><h3>Deals & steals</h3></div>
+        <span>${state.trades.length} ${state.trades.length === 1 ? "trade" : "trades"}</span>
       </div>
       ${errorBanner(state.error)}
       ${isCommish ? renderTradeEditor() : ""}
@@ -271,29 +261,30 @@ function renderTab() {
             <div class="trade-team right"><b>${esc(trade.b)}</b><small>SENDS</small><p>${esc(trade.get)}</p></div>
             ${isCommish ? `<button class="delete-chip" data-delete-trade="${trade.id}" aria-label="Delete trade">×</button>` : ""}
           </article>
-        `).join("") : `<div class="empty-state"><p class="eyebrow">QUIET ON THE WIRE</p><h4>No trades yet.</h4><p>The Commish posts every official deal here.</p></div>`}
+        `).join("") : `<div class="empty-state"><h4>No trades yet.</h4><p>The Commish posts every official deal here.</p></div>`}
       </div>
     `,
     leaderboard: () => !state ? loadingPanel("standings") : `
       <div class="section-intro">
-        <div><p class="eyebrow">POWER RANKINGS</p><h3>Receipts don't lie.</h3></div>
-        <span>${state.standings.length ? "OFFICIAL STANDINGS" : "COMING SOON"}</span>
+        <div><p class="eyebrow">Leaderboard</p><h3>Standings</h3></div>
+        <span>${state.standings.length ? "Official" : "Coming soon"}</span>
       </div>
       ${errorBanner(state.error)}
       ${isCommish ? renderStandingsEditor(state.standings) : state.standings.length ? `
         <div class="leaderboard">
-          <div class="table-header"><span>RANK</span><span>TEAM / MANAGER</span><span>RECORD</span><span>POINTS</span></div>
+          <div class="table-header"><span>#</span><span>Team</span><span>Record</span><span>Points</span></div>
           ${state.standings.map((team, index) => `
             <div class="standing-row ${index < 3 ? `podium rank-${index + 1}` : ""}">
-              <span class="rank">${index < 3 ? icons.trophy : ""}<b>${String(index + 1).padStart(2, "0")}</b></span>
+              <span class="rank"><b>${index + 1}</b></span>
               <span class="team-name"><b>${esc(team.team)}</b><small>${esc(team.manager)}</small></span>
               <strong>${esc(team.record)}</strong>
               <strong>${esc(team.points)}</strong>
             </div>
           `).join("")}
         </div>
-      ` : `<div class="empty-state"><p class="eyebrow">NO RECEIPTS YET</p><h4>The leaderboard is empty.</h4><p>Standings go up once the Commish posts them.</p></div>`}
+      ` : `<div class="empty-state"><h4>The leaderboard is empty.</h4><p>Standings go up once the Commish posts them.</p></div>`}
     `,
+    performers: () => renderPerformers(),
     rankings: () => renderRankings(),
   };
   panel.innerHTML = renderers[activeTab]();
@@ -305,8 +296,7 @@ function renderPoll(poll, index) {
   const total = poll.total;
   return `
     <article class="poll-card" data-poll="${esc(poll.id)}">
-      <div class="poll-number">0${index + 1}</div>
-      <div class="poll-meta"><span>${esc(poll.deadline)}</span><b>${total} ${total === 1 ? "VOTE" : "VOTES"}</b></div>
+            <div class="poll-meta"><span>${esc(poll.deadline)}</span><b>${total} ${total === 1 ? "vote" : "votes"}</b></div>
       <h4>${esc(poll.question)}</h4>
       <div class="poll-options">
         ${poll.options.map((option, optionIndex) => {
@@ -318,7 +308,7 @@ function renderPoll(poll, index) {
             </button>`;
         }).join("")}
       </div>
-      <p class="vote-status">${voted ? "✓ VOTE LOCKED IN" : "CHOOSE WISELY. YOUR NAME IS ATTACHED."}</p>
+      <p class="vote-status">${voted ? "✓ Vote locked in" : "One vote per person. Your name is attached."}</p>
       ${isCommish && poll.voters?.length ? `
         <div class="voter-list">
           <p class="eyebrow">WHO VOTED</p>
@@ -375,18 +365,39 @@ function renderStandingsEditor(standings) {
 
 const injuryLabels = { ACTIVE: "", OUT: "OUT", DAY_TO_DAY: "DTD", INJURY_RESERVE: "IR", SUSPENSION: "SUSP", QUESTIONABLE: "Q", DOUBTFUL: "D", PROBABLE: "P", INJURED: "INJ" };
 const injuryText = (status) => status && status !== "ACTIVE" ? status.replace(/_/g, " ") : "Healthy";
-const headshot = (id) => `https://a.espncdn.com/combiner/i?img=/i/headshots/nba/players/full/${id}.png&w=96&h=70&cb=1`;
+const espnSport = { basketball: "nba", football: "nfl" };
+const headshot = (sport, id, w = 96, h = 70) => `https://a.espncdn.com/combiner/i?img=/i/headshots/${espnSport[sport]}/players/full/${id}.png&w=${w}&h=${h}&cb=1`;
 const fmt = (value, digits = 1) => value === null || value === undefined ? "—" : Number(value).toFixed(digits);
+const injuryTag = (status) => injuryLabels[status] ? ` <em class="injury-tag">${injuryLabels[status]}</em>` : "";
+
+const rankingSetup = {
+  basketball: {
+    title: "ADP & draft rankings",
+    positions: ["ALL", "PG", "SG", "SF", "PF", "C"],
+    columns: [["ADP", (p) => fmt(p.adp)], ["ROST", (p) => p.rostered === null ? "—" : `${fmt(p.rostered)}%`], ["PTS", (p) => fmt(p.pts)], ["REB", (p) => fmt(p.reb)], ["AST", (p) => fmt(p.ast)]],
+    note: (season) => `ESPN Fantasy Basketball rankings and ADP (${season - 1}–${String(season).slice(2)}). Stats are projected per game, or last season when no projection exists.`,
+    search: "Search players or team (e.g. LAL)",
+  },
+  football: {
+    title: "Top 100",
+    positions: ["ALL", "QB", "RB", "WR", "TE", "K", "D/ST"],
+    columns: [["ADP", (p) => fmt(p.adp)], ["ROST", (p) => p.rostered === null ? "—" : `${fmt(p.rostered)}%`], ["FPTS", (p) => fmt(p.fpts)], ["AVG", (p) => fmt(p.avg)], ["PROJ", (p) => fmt(p.projAvg)]],
+    note: (season) => `ESPN Fantasy Football PPR rankings (${season} season). FPTS and AVG are this season's PPR points; PROJ is ESPN's projected points per game.`,
+    search: "Search players or team (e.g. KC)",
+  },
+};
 
 function loadRankings() {
-  if (rankings.data || rankings.loading) return;
-  rankings.loading = true;
-  api("/players")
-    .then((data) => { rankings.data = data; })
-    .catch((error) => { rankings.data = { players: [], error: error.message }; })
+  const state = rankings;
+  const sport = activeLeague;
+  if (state.data || state.loading) return;
+  state.loading = true;
+  api(`/${sport}/players`)
+    .then((data) => { state.data = data; })
+    .catch((error) => { state.data = { players: [], error: error.message }; })
     .finally(() => {
-      rankings.loading = false;
-      if (activeTab === "rankings") renderTab();
+      state.loading = false;
+      if (activeTab === "rankings" && activeLeague === sport) renderTab();
     });
 }
 
@@ -399,59 +410,117 @@ function filteredPlayers() {
   return players;
 }
 
+const updatedLabel = (updatedAt) => updatedAt ? new Date(updatedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : null;
+
 function renderRankings() {
   if (!rankings.data) {
     loadRankings();
     return loadingPanel("ESPN rankings");
   }
+  const setup = rankingSetup[activeLeague];
   const { updatedAt, season, error } = rankings.data;
   const players = filteredPlayers();
-  const updated = updatedAt ? new Date(updatedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : null;
+  const updated = updatedLabel(updatedAt);
   return `
     <div class="section-intro">
-      <div><p class="eyebrow">DRAFT ROOM INTEL</p><h3>ADP & draft rankings.</h3></div>
-      <span>${updated ? `ESPN · UPDATED ${esc(updated.toUpperCase())}` : "ESPN"}</span>
+      <div><p class="eyebrow">Draft room</p><h3>${setup.title}</h3></div>
+      <span>${updated ? `ESPN · Updated ${esc(updated)}` : "ESPN"}</span>
     </div>
-    ${!rankings.data.players.length ? `<div class="empty-state"><p class="eyebrow">WAITING ON ESPN</p><h4>Rankings are on the way.</h4><p>The server pulls ESPN's ADP and rankings on a schedule. ${error ? `Last attempt: ${esc(error)}` : "Check back shortly."}</p>${isCommish ? `<button class="ghost-button" id="refresh-players">Pull from ESPN now</button>` : ""}</div>` : `
+    ${!rankings.data.players.length ? `<div class="empty-state"><h4>Rankings are on the way.</h4><p>The server pulls ESPN's rankings on a schedule. ${error ? `Last attempt: ${esc(error)}` : "Check back shortly."}</p>${isCommish ? `<button class="ghost-button" id="refresh-players">Pull from ESPN now</button>` : ""}</div>` : `
       <div class="rank-controls">
-        <input type="search" id="rank-search" value="${esc(rankings.query)}" placeholder="Search players or team (e.g. LAL)" aria-label="Search players" />
+        <input type="search" id="rank-search" value="${esc(rankings.query)}" placeholder="${setup.search}" aria-label="Search players" />
         <div class="chip-row" role="group" aria-label="Filter by position">
-          ${["ALL", "PG", "SG", "SF", "PF", "C"].map((pos) => `<button class="${rankings.position === pos ? "active" : ""}" data-position="${pos}">${pos}</button>`).join("")}
+          ${setup.positions.map((pos) => `<button class="${rankings.position === pos ? "active" : ""}" data-position="${pos}">${pos}</button>`).join("")}
         </div>
         <div class="chip-row" role="group" aria-label="Sort players">
-          <button class="${rankings.sort === "rank" ? "active" : ""}" data-sort="rank">ESPN Rank</button>
+          <button class="${rankings.sort === "rank" ? "active" : ""}" data-sort="rank">Rank</button>
           <button class="${rankings.sort === "adp" ? "active" : ""}" data-sort="adp">ADP</button>
         </div>
       </div>
       <div class="rank-table">
-        <div class="rank-row rank-head"><span>RANK</span><span>PLAYER</span><span>ADP</span><span>ROSTERED</span><span>PTS</span><span>REB</span><span>AST</span></div>
+        <div class="rank-row rank-head"><span>#</span><span>Player</span>${setup.columns.map(([label]) => `<span>${label}</span>`).join("")}</div>
         ${players.slice(0, rankings.shown).map((player) => `
           <button class="rank-row" data-player="${player.id}">
             <span class="rank-num">${player.espnRank ?? "—"}</span>
             <span class="rank-player">
-              <img src="${headshot(player.id)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'" />
-              <span><b>${esc(player.name)}</b><small>${esc(player.team)} · ${esc(player.position)}${injuryLabels[player.injuryStatus] ? ` <em class="injury-tag">${injuryLabels[player.injuryStatus]}</em>` : ""}</small></span>
+              <img src="${headshot(activeLeague, player.id)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'" />
+              <span><b>${esc(player.name)}</b><small>${esc(player.team)} · ${esc(player.position)}${injuryTag(player.injuryStatus)}</small></span>
             </span>
-            <span>${fmt(player.adp)}</span>
-            <span>${player.rostered === null ? "—" : `${fmt(player.rostered)}%`}</span>
-            <span>${fmt(player.pts)}</span>
-            <span>${fmt(player.reb)}</span>
-            <span>${fmt(player.ast)}</span>
+            ${setup.columns.map(([, value]) => `<span>${value(player)}</span>`).join("")}
           </button>
         `).join("") || `<div class="empty-state slim"><h4>No players match.</h4></div>`}
       </div>
       ${players.length > rankings.shown ? `<button class="ghost-button show-more" id="show-more">Show more players</button>` : ""}
-      <p class="rank-note">Rankings and ADP from ESPN Fantasy Basketball (${season - 1}–${String(season).slice(2)}). Stats are ESPN projections per game, or last season when no projection exists. Tap a player for the full card.</p>
+      <p class="rank-note">${setup.note(season)} Tap a player for the full card.</p>
     `}
   `;
 }
 
-function statTable(title, stats) {
+function loadPerformers() {
+  const state = performers;
+  const sport = activeLeague;
+  if (state.data || state.loading) return;
+  state.loading = true;
+  api(`/${sport}/performers`)
+    .then((data) => { state.data = data; })
+    .catch((error) => { state.data = { categories: [], error: error.message }; })
+    .finally(() => {
+      state.loading = false;
+      if (activeTab === "performers" && activeLeague === sport) renderTab();
+    });
+}
+
+function renderPerformers() {
+  if (!performers.data) {
+    loadPerformers();
+    return loadingPanel("top performers");
+  }
+  const { categories, label, games, updatedAt, error } = performers.data;
+  const period = activeLeague === "basketball" ? "of the day" : "of the week";
+  return `
+    <div class="section-intro">
+      <div><p class="eyebrow">${esc(label || (activeLeague === "basketball" ? "Today" : "This week"))}${games ? ` · ${games} ${games === 1 ? "game" : "games"}` : ""}</p><h3>Top performers ${period}</h3></div>
+      <span>${updatedAt ? `ESPN · Updated ${esc(updatedLabel(updatedAt))}` : "ESPN"}</span>
+    </div>
+    ${categories.length ? `
+      <div class="performer-grid">
+        ${categories.map((category) => `
+          <section class="performer-card">
+            <h4>${esc(category.label)}</h4>
+            <ol>
+              ${category.leaders.map((leader) => `
+                <li>
+                  <${leader.card ? `button data-player="${leader.id}"` : "div"} class="performer-row">
+                    <img src="${headshot(activeLeague, leader.id, 64, 64)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'" />
+                    <span class="performer-name"><b>${esc(leader.name)}</b>${leader.line.length > 8 ? `<span class="performer-stat">${esc(leader.line)}</span>` : ""}<small>${esc([leader.team, leader.position].filter(Boolean).join(" · "))}${leader.game ? ` · ${esc(leader.game)}` : ""}${leader.live ? ` <em class="live-tag">LIVE</em>` : ""}</small></span>
+                    <span class="performer-line">${leader.line.length > 8 ? "" : esc(leader.line)}</span>
+                  </${leader.card ? "button" : "div"}>
+                </li>`).join("")}
+            </ol>
+          </section>`).join("")}
+      </div>
+      <p class="rank-note">Game leaders from ESPN box scores, refreshed every 30 minutes.</p>
+    ` : `<div class="empty-state"><h4>No games yet.</h4><p>${error ? esc(error) : `Top performers show up here once games ${activeLeague === "basketball" ? "tip off" : "kick off"}.`}</p></div>`}
+  `;
+}
+
+function statTable(title, stats, sport) {
   if (!stats) return "";
+  if (sport === "football") {
+    return `
+      <div class="stat-block">
+        <p class="eyebrow">${title}</p>
+        <div class="stat-grid two">
+          <span><b>${fmt(stats.fpts)}</b><small>PPR POINTS</small></span>
+          <span><b>${fmt(stats.avg)}</b><small>PER GAME</small></span>
+        </div>
+      </div>
+    `;
+  }
   const cells = [["PTS", stats.pts], ["REB", stats.reb], ["AST", stats.ast], ["STL", stats.stl], ["BLK", stats.blk], ["3PM", stats.threes], ["TO", stats.to], ["MIN", stats.min]];
   return `
     <div class="stat-block">
-      <p class="eyebrow">${title}</p>
+      <p class="eyebrow">${title} · per game</p>
       <div class="stat-grid">
         ${cells.map(([label, value]) => `<span><b>${fmt(value)}</b><small>${label}</small></span>`).join("")}
         <span><b>${stats.fgPct === undefined ? "—" : (stats.fgPct * 100).toFixed(1)}</b><small>FG%</small></span>
@@ -461,17 +530,17 @@ function statTable(title, stats) {
   `;
 }
 
-async function openPlayer(id) {
+async function openPlayer(id, sport = activeLeague) {
   const modal = document.querySelector("#player-modal");
   const card = document.querySelector("#player-card");
-  card.innerHTML = `<p class="eyebrow">PULLING THE FILE…</p>`;
+  card.innerHTML = `<p class="eyebrow">Loading…</p>`;
   modal.showModal();
   try {
-    const { player, news } = await api(`/players/${id}`);
+    const { player, news } = await api(`/${sport}/players/${id}`);
     const injured = player.injuryStatus && player.injuryStatus !== "ACTIVE";
     card.innerHTML = `
       <div class="player-top">
-        <img src="https://a.espncdn.com/combiner/i?img=/i/headshots/nba/players/full/${player.id}.png&w=350&h=254" alt="" onerror="this.style.display='none'" />
+        <img src="${headshot(sport, player.id, 350, 254)}" alt="" onerror="this.style.display='none'" />
         <div>
           <p class="eyebrow">${esc(player.team)} · ${esc(player.position)}${player.jersey ? ` · #${esc(player.jersey)}` : ""}</p>
           <h2>${esc(player.name)}</h2>
@@ -481,15 +550,15 @@ async function openPlayer(id) {
       <div class="player-facts">
         <span><b>${player.espnRank ?? "—"}</b><small>ESPN RANK</small></span>
         <span><b>${fmt(player.adp)}</b><small>ADP</small></span>
-        <span><b>${player.rotoRank ?? "—"}</b><small>ROTO RANK</small></span>
+        <span><b>${sport === "football" ? fmt(player.auctionValue) : player.rotoRank ?? "—"}</b><small>${sport === "football" ? "AUCTION $" : "ROTO RANK"}</small></span>
         <span><b>${player.rostered === null ? "—" : `${fmt(player.rostered)}%`}</b><small>ROSTERED</small></span>
       </div>
-      ${statTable("THIS SEASON · PER GAME", player.thisSeason)}
-      ${statTable("PROJECTED · PER GAME", player.projected)}
-      ${statTable("LAST SEASON · PER GAME", player.lastSeason)}
-      ${player.outlook ? `<div class="player-outlook"><p class="eyebrow">ESPN OUTLOOK</p><p>${esc(player.outlook)}</p></div>` : ""}
+      ${statTable("This season", player.thisSeason, sport)}
+      ${statTable("Projected", player.projected, sport)}
+      ${statTable("Last season", player.lastSeason, sport)}
+      ${player.outlook ? `<div class="player-outlook"><p class="eyebrow">ESPN outlook</p><p>${esc(player.outlook)}</p></div>` : ""}
       <div class="player-news">
-        <p class="eyebrow">LATEST NEWS</p>
+        <p class="eyebrow">Latest news</p>
         ${news.length ? news.map((item) => `
           <article>
             ${item.published ? `<time>${esc(new Date(item.published).toLocaleDateString("en-US", { month: "short", day: "numeric" }))}</time>` : ""}
@@ -498,7 +567,7 @@ async function openPlayer(id) {
             ${item.link ? `<a href="${esc(item.link)}" target="_blank" rel="noopener">Read on ESPN</a>` : ""}
           </article>`).join("") : `<p class="muted">No recent news for this player.</p>`}
       </div>
-      <a class="espn-link" href="https://www.espn.com/nba/player/_/id/${player.id}" target="_blank" rel="noopener">Full profile on ESPN ${icons.arrow}</a>
+      <a class="espn-link" href="https://www.espn.com/${espnSport[sport]}/player/_/id/${player.id}" target="_blank" rel="noopener">Full profile on ESPN ${icons.arrow}</a>
     `;
   } catch (error) {
     card.innerHTML = `<p class="form-error">${esc(error.message)}</p>`;
@@ -565,7 +634,7 @@ function bindTabEvents() {
       const card = button.closest("[data-poll]");
       const status = card.querySelector(".vote-status");
       if (voterName.trim().length < 2) {
-        status.textContent = "ADD YOUR NAME ABOVE FIRST, THEN VOTE.";
+        status.textContent = "Add your name above first, then vote.";
         status.classList.add("form-error");
         voterInput.focus();
         return;
@@ -579,7 +648,7 @@ function bindTabEvents() {
         await loadLeague();
         const freshStatus = document.querySelector(`[data-poll="${card.dataset.poll}"] .vote-status`);
         if (freshStatus) {
-          freshStatus.textContent = error.message.toUpperCase();
+          freshStatus.textContent = error.message;
           freshStatus.classList.add("form-error");
         }
       }
@@ -660,7 +729,7 @@ function bindTabEvents() {
   document.querySelector("#refresh-players")?.addEventListener("click", async (event) => {
     event.currentTarget.disabled = true;
     event.currentTarget.textContent = "Pulling from ESPN…";
-    await api("/players/refresh", { method: "POST" }).catch(() => {});
+    await api(`/${activeLeague}/players/refresh`, { method: "POST" }).catch(() => {});
     rankings.data = null;
     renderTab();
   });

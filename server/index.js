@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { db, transaction } from "./db.js";
-import { getPlayer, getPlayerNews, getPlayersPayload, refreshPlayers, startPlayerRefreshSchedule } from "./espn.js";
+import { getPerformers, getPlayer, getPlayerNews, getPlayersPayload, isSport, refreshPlayers, startPlayerRefreshSchedule } from "./espn.js";
 
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || "127.0.0.1";
@@ -198,19 +198,24 @@ const routes = [
     return { ok: true };
   }],
 
-  ["GET", /^\/api\/players$/, (req, res) => {
-    send(res, 200, getPlayersPayload(), { "Cache-Control": "public, max-age=300" });
+  ["GET", /^\/api\/(basketball|football)\/players$/, (req, res, [sport]) => {
+    send(res, 200, getPlayersPayload(sport), { "Cache-Control": "public, max-age=300" });
   }],
 
-  ["GET", /^\/api\/players\/(\d+)$/, async (req, res, [id]) => {
-    const player = getPlayer(Number(id));
+  ["GET", /^\/api\/(basketball|football)\/players\/(\d+)$/, async (req, res, [sport, id]) => {
+    const player = getPlayer(sport, Number(id));
     if (!player) throw new HttpError(404, "Player not found");
-    return { player, news: await getPlayerNews(Number(id)) };
+    return { player, news: await getPlayerNews(sport, Number(id)) };
   }],
 
-  ["POST", /^\/api\/players\/refresh$/, async (req) => {
+  ["GET", /^\/api\/(basketball|football)\/performers$/, async (req, res, [sport]) => {
+    send(res, 200, await getPerformers(sport), { "Cache-Control": "public, max-age=300" });
+  }],
+
+  ["POST", /^\/api\/(basketball|football)\/players\/refresh$/, async (req, res, [sport]) => {
     requireCommish(req);
-    return { refreshed: await refreshPlayers({ force: true }) };
+    if (!isSport(sport)) throw new HttpError(404, "Unknown league");
+    return { refreshed: await refreshPlayers(sport, { force: true }) };
   }],
 ];
 

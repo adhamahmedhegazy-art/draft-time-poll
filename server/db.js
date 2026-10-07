@@ -7,6 +7,12 @@ mkdirSync(dirname(dbPath), { recursive: true });
 
 export const db = new DatabaseSync(dbPath);
 
+// The first version cached basketball players only. Those tables hold nothing but ESPN cache, so rebuild them.
+try {
+  const columns = db.prepare("PRAGMA table_info(players)").all().map((column) => column.name);
+  if (columns.length && !columns.includes("sport")) db.exec("DROP TABLE players; DROP TABLE IF EXISTS player_news; DELETE FROM meta WHERE key LIKE 'players_%';");
+} catch { /* fresh database */ }
+
 db.exec(`
   PRAGMA journal_mode = WAL;
   PRAGMA synchronous = NORMAL;
@@ -54,12 +60,21 @@ db.exec(`
     expires_at INTEGER NOT NULL
   );
   CREATE TABLE IF NOT EXISTS players (
-    id INTEGER PRIMARY KEY,
+    sport TEXT NOT NULL,
+    id INTEGER NOT NULL,
     sort_rank INTEGER NOT NULL,
-    data TEXT NOT NULL
+    data TEXT NOT NULL,
+    PRIMARY KEY (sport, id)
   );
   CREATE TABLE IF NOT EXISTS player_news (
-    player_id INTEGER PRIMARY KEY,
+    sport TEXT NOT NULL,
+    player_id INTEGER NOT NULL,
+    fetched_at INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (sport, player_id)
+  );
+  CREATE TABLE IF NOT EXISTS performers (
+    sport TEXT PRIMARY KEY,
     fetched_at INTEGER NOT NULL,
     data TEXT NOT NULL
   );
