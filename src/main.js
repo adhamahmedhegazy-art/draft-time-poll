@@ -88,7 +88,27 @@ async function loadLeague(key = activeLeague) {
   } catch (error) {
     leagueState[key] = { error: error.message, polls: [], trades: [], standings: [] };
   }
-  if (key === activeLeague) renderTab();
+  if (key === activeLeague) {
+    const board = document.querySelector("#scoreboard");
+    if (board) board.innerHTML = renderScoreboard();
+    renderTab();
+  }
+}
+
+// ESPN-style strip of league numbers above the tabs. Uses data already loaded, no extra requests.
+function renderScoreboard() {
+  const state = leagueState[activeLeague];
+  if (!state) return `<div class="score-tile"><small>League</small><b>Loading…</b></div>`;
+  const leader = state.standings[0];
+  const lastTrade = state.trades[0];
+  const votes = state.polls.reduce((sum, poll) => sum + (poll.total || 0), 0);
+  const tiles = [
+    ["League leader", leader ? leader.team : "TBD", leader ? `${leader.record} · ${leader.points} pts` : "Standings coming soon", "lead"],
+    ["Open polls", String(state.polls.length), `${votes} ${votes === 1 ? "vote" : "votes"} cast`],
+    ["Trades", String(state.trades.length), state.trades.length === 1 ? "official deal" : "official deals"],
+    ["Latest deal", lastTrade ? `${lastTrade.a} ⇄ ${lastTrade.b}` : "Quiet so far", lastTrade ? lastTrade.time : "Nobody's pulled the trigger"],
+  ];
+  return tiles.map(([label, value, sub, cls = ""]) => `<div class="score-tile ${cls}"><small>${esc(label)}</small><b>${esc(value)}</b><span>${esc(sub)}</span></div>`).join("");
 }
 
 function renderShell() {
@@ -204,6 +224,7 @@ function renderLeague() {
       </div>
       <span class="season-badge">${league.season}</span>
     </div>
+    <div class="scoreboard" id="scoreboard">${renderScoreboard()}</div>
     <nav class="content-tabs" aria-label="${league.label} league pages">
       ${tabsFor(activeLeague).map(([key, icon, label]) => `
         <button class="${activeTab === key ? "active" : ""}" data-tab="${key}" ${activeTab === key ? 'aria-current="page"' : ""}>

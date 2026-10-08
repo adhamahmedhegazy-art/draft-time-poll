@@ -518,3 +518,48 @@ dialog { border-radius: var(--radius); }
 .content-tabs button { border-bottom: 0; border-radius: 3px; padding: 9px 12px; }
 .content-tabs button.active { background: #111317; color: white; font-size: 18px; font-weight: 700; padding: 9px 16px; }
 .content-tabs button.active svg { color: white; }
+
+/* ---------- Busier, ESPN-style extras ---------- */
+:root:not([data-sport="football"]) { --accent-2: #6d28d9; --accent-2-soft: #f1ebff; }
+body { background-color: var(--bg); background-image: linear-gradient(rgb(0 0 0 / .025) 1px, transparent 1px), linear-gradient(90deg, rgb(0 0 0 / .025) 1px, transparent 1px); background-size: 28px 28px; }
+
+/* Scoreboard strip */
+.scoreboard { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1.6fr; margin: 0 0 14px; background: #111317; color: white; border-radius: var(--radius); overflow: hidden; border-bottom: 3px solid var(--accent-2); }
+.score-tile { display: flex; flex-direction: column; gap: 2px; padding: 12px 18px; min-width: 0; }
+.score-tile + .score-tile { border-left: 1px solid #2a2d33; }
+.score-tile small { color: #9ca3af; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
+.score-tile b { font-family: var(--head); font-size: 22px; font-weight: 700; text-transform: uppercase; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.score-tile span { color: #a1a1aa; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.score-tile.lead b { color: var(--sun); }
+
+/* Section headings get a colored block, like ESPN module titles */
+.section-intro h3 { display: flex; align-items: center; gap: 10px; }
+.section-intro h3::before { content: ""; width: 6px; height: 22px; background: var(--accent-2); flex: none; }
+.section-intro .eyebrow { color: var(--accent-2); }
+
+/* Dark title strips on cards */
+.performer-card { padding-top: 0; border-top: 0; }
+.performer-card h4 { margin: 0 -18px 10px; padding: 9px 18px; background: #111317; color: white; font-size: 17px; border-bottom: 3px solid var(--accent-2); }
+.performer-card:nth-child(n) { border-top: 0; }
+.performer-card:nth-child(2) h4 { border-bottom-color: var(--sun); }
+.performer-card:nth-child(3) h4 { border-bottom-color: #0ea5e9; }
+.performer-card:nth-child(4) h4 { border-bottom-color: #ec4899; }
+.poll-card { border-top: 0; padding-top: 0; }
+.poll-meta { margin: 0 -24px; padding: 9px 24px; background: #111317; color: #a1a1aa; text-transform: uppercase; font-size: 11px; font-weight: 700; letter-spacing: .08em; border-bottom: 3px solid var(--accent-2); }
+.poll-meta b { color: white; font-weight: 700; }
+.poll-result i { background: var(--accent-2-soft); }
+.chosen .poll-result i { background: color-mix(in srgb, var(--accent-2) 22%, white); }
+.announcement-card { border-top: 0; box-shadow: inset 0 5px 0 #111317, inset 0 8px 0 var(--accent-2); }
+.letter-body strong { box-shadow: inset 0 -.45em 0 color-mix(in srgb, var(--sun) 55%, transparent); }
+.trade-card { border-left: 5px solid var(--accent-2); }
+.trade-time span { background: var(--accent-2); }
+.forum-item { border-left-color: var(--accent-2); }
+.leaderboard, .rank-table { border-bottom: 3px solid var(--accent-2); }
+.table-header, .rank-head { border-bottom: 3px solid var(--accent-2); }
+
+@media (max-width: 760px) {
+  .scoreboard { grid-template-columns: 1fr 1fr; }
+  .score-tile:nth-child(3) { border-left: 0; }
+  .score-tile:nth-child(n+3) { border-top: 1px solid #2a2d33; }
+  .score-tile b { font-size: 18px; }
+}
