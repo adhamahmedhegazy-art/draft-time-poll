@@ -609,3 +609,57 @@ body { background-image: none; }
 .score-tile + .score-tile { border-left: 0; position: relative; }
 .score-tile + .score-tile::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 1px; background: #3a3d44; transform: skewX(-14deg); }
 @media (max-width: 760px) { .score-tile:nth-child(3)::before { display: none; } .score-tile:nth-child(n+3) { border-top-color: #24272d; } }
+
+/* ---------- Full-color pages: the league colors fill the whole site, cards float on top ---------- */
+:root { --page: linear-gradient(165deg, #3b0f8c 0%, #6d28d9 28%, #b0379a 62%, #ff5c17 100%); --card-radius: 14px; }
+:root[data-sport="football"] { --page: linear-gradient(165deg, #07130d 0%, #0d3b22 30%, #15803d 62%, #1e3a8a 100%); }
+html { background: #3b0f8c; }
+:root[data-sport="football"] { background: #07130d; }
+body { background: var(--page) fixed; background-size: cover; color: var(--ink); }
+
+.site-header { background: rgb(10 10 14 / .55); backdrop-filter: blur(10px); border-bottom: 1px solid rgb(255 255 255 / .12); }
+.hero { background: transparent !important; border-radius: var(--card-radius); padding-inline: 0; }
+.hero::after { display: none; }
+
+/* Everything that sits directly on the color goes white */
+.league-heading h2, .section-intro h3, .section-intro > span, .season-badge, .rank-note, footer, footer .feedback-trigger, .auth-shell > p.muted { color: white; }
+.league-heading h2 span { color: rgb(255 255 255 / .6); }
+.section-intro .eyebrow { color: var(--sun); }
+.section-intro h3::before { background: var(--sun); }
+footer { border-top-color: rgb(255 255 255 / .18); }
+footer .feedback-trigger:hover { color: var(--sun); }
+
+/* Rounder (not bubbly) cards */
+.announcement-card, .poll-card, .trade-card, .leaderboard, .rank-table, .performer-card, .forum-item, .forum-compose, .commish-editor, .empty-state, .auth-card, .scoreboard {
+  border-radius: var(--card-radius); box-shadow: 0 18px 40px -22px rgb(0 0 0 / .55); }
+.announcement-card { box-shadow: inset 0 5px 0 var(--accent-2), 0 18px 40px -22px rgb(0 0 0 / .55); overflow: hidden; }
+.trade-card { box-shadow: inset 5px 0 0 var(--accent-2), 0 18px 40px -22px rgb(0 0 0 / .55); }
+.poll-options button, input, select, textarea, .send-button, .ghost-button { border-radius: 8px; }
+.performer-card h4, .poll-meta span, .letter-meta span, .trade-time span { border-radius: 4px; }
+.avatar, .card-photo { border-radius: 8px; }
+
+/* League switcher and tabs as glassy bars on the color */
+.league-switcher { background: rgb(255 255 255 / .12); border-radius: 12px; box-shadow: none; padding: 4px; gap: 4px; }
+.league-button { border-radius: 9px; color: rgb(255 255 255 / .8); }
+.league-button + .league-button { border-left: 0; }
+.league-button .league-icon { color: inherit; }
+.league-button.active { background: white; color: #111317; }
+.league-button.active .league-icon { color: #111317; }
+.content-tabs { background: rgb(10 10 14 / .35); border-radius: 12px; padding: 6px; }
+.content-tabs button { color: rgb(255 255 255 / .75); border-radius: 8px; }
+.content-tabs button:hover { color: white; background: rgb(255 255 255 / .08); }
+.content-tabs button.active { background: white; color: #111317; }
+.content-tabs button.active::before { display: none; }
+.content-tabs button.active svg { color: #111317; }
+
+.scoreboard { background: rgb(10 10 14 / .55); backdrop-filter: blur(6px); box-shadow: inset 0 -3px 0 var(--sun); }
+.score-tile + .score-tile::before { background: rgb(255 255 255 / .2); }
+.chip-row { border-radius: 10px; overflow: hidden; border: 0; }
+.rank-controls input { border: 0; }
+
+@media (max-width: 760px) {
+  .hero { padding-inline: 4px; }
+}
+dialog { border-radius: var(--card-radius); overflow: hidden; }
+.player-modal { border-top-color: var(--accent-2); }
+.player-facts, .stat-grid { border-radius: 10px; overflow: hidden; }
