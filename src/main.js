@@ -92,6 +92,7 @@ async function loadLeague(key = activeLeague) {
 }
 
 function renderShell() {
+  document.documentElement.dataset.sport = activeLeague;
   app.innerHTML = `
     <header class="site-header">
       <a class="brand" href="#" aria-label="Nats Commish home">
@@ -106,8 +107,9 @@ function renderShell() {
 
     <main>
       <section class="hero">
+        <span class="hero-sticker">EST. 2026 · ZERO PEACE</span>
         <p class="eyebrow">Fantasy League HQ</p>
-        <h1>All league. All drama.</h1>
+        <h1>All league. <span>All drama.</span></h1>
         <p class="hero-copy">Announcements, votes, trades and standings from your commissioner.</p>
       </section>
 
@@ -212,6 +214,8 @@ function renderLeague() {
     <section id="tab-panel" class="tab-panel"></section>
   `;
   renderTab();
+  const activeTabButton = document.querySelector(".content-tabs .active");
+  if (activeTabButton) activeTabButton.parentElement.scrollLeft = activeTabButton.offsetLeft - 16;
   document.querySelectorAll("[data-tab]").forEach((button) => {
     button.addEventListener("click", () => {
       activeTab = button.dataset.tab;
@@ -463,8 +467,11 @@ function renderStandingsEditor(standings) {
 const injuryLabels = { ACTIVE: "", OUT: "OUT", DAY_TO_DAY: "DTD", INJURY_RESERVE: "IR", SUSPENSION: "SUSP", QUESTIONABLE: "Q", DOUBTFUL: "D", PROBABLE: "P", INJURED: "INJ" };
 const injuryText = (status) => status && status !== "ACTIVE" ? status.replace(/_/g, " ") : "Healthy";
 const espnSport = { basketball: "nba", football: "nfl" };
-const headshot = (sport, id, w = 96, h = 70) => `https://a.espncdn.com/combiner/i?img=/i/headshots/${espnSport[sport]}/players/full/${id}.png&w=${w}&h=${h}&cb=1`;
+// ESPN headshots are 350×254. Always request that same shape so faces never get stretched; CSS crops them into frames.
+const headshot = (sport, id, w = 160) => `https://a.espncdn.com/combiner/i?img=/i/headshots/${espnSport[sport]}/players/full/${id}.png&w=${w}&h=${Math.round((w * 254) / 350)}&scale=crop&cb=1`;
+const avatar = (sport, id, className, w) => `<span class="${className}"><img src="${headshot(sport, id, w)}" alt="" loading="lazy" onerror="this.parentElement.classList.add('no-photo')" /></span>`;
 const fmt = (value, digits = 1) => value === null || value === undefined ? "—" : Number(value).toFixed(digits);
+const posPill = (position) => position ? `<em class="pos pos-${esc(position.replace(/\W/g, "").toLowerCase())}">${esc(position)}</em>` : "";
 const injuryTag = (status) => injuryLabels[status] ? ` <em class="injury-tag">${injuryLabels[status]}</em>` : "";
 
 const rankingSetup = {
@@ -540,8 +547,8 @@ function renderRankings() {
           <button class="rank-row" data-player="${player.id}">
             <span class="rank-num">${player.espnRank ?? "—"}</span>
             <span class="rank-player">
-              <img src="${headshot(activeLeague, player.id)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'" />
-              <span><b>${esc(player.name)}</b><small>${esc(player.team)} · ${esc(player.position)}${injuryTag(player.injuryStatus)}</small></span>
+              ${avatar(activeLeague, player.id, "avatar", 160)}
+              <span><b>${esc(player.name)}</b><small>${esc(player.team)} ${posPill(player.position)}${injuryTag(player.injuryStatus)}</small></span>
             </span>
             ${setup.columns.map(([, value]) => `<span>${value(player)}</span>`).join("")}
           </button>
@@ -588,7 +595,7 @@ function renderPerformers() {
               ${category.leaders.map((leader) => `
                 <li>
                   <${leader.card ? `button data-player="${leader.id}"` : "div"} class="performer-row">
-                    <img src="${headshot(activeLeague, leader.id, 64, 64)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'" />
+                    ${avatar(activeLeague, leader.id, "avatar", 160)}
                     <span class="performer-name"><b>${esc(leader.name)}</b>${leader.line.length > 8 ? `<span class="performer-stat">${esc(leader.line)}</span>` : ""}<small>${esc([leader.team, leader.position].filter(Boolean).join(" · "))}${leader.game ? ` · ${esc(leader.game)}` : ""}${leader.live ? ` <em class="live-tag">LIVE</em>` : ""}</small></span>
                     <span class="performer-line">${leader.line.length > 8 ? "" : esc(leader.line)}</span>
                   </${leader.card ? "button" : "div"}>
@@ -637,9 +644,9 @@ async function openPlayer(id, sport = activeLeague) {
     const injured = player.injuryStatus && player.injuryStatus !== "ACTIVE";
     card.innerHTML = `
       <div class="player-top">
-        <img src="${headshot(sport, player.id, 350, 254)}" alt="" onerror="this.style.display='none'" />
+        ${avatar(sport, player.id, "card-photo", 350)}
         <div>
-          <p class="eyebrow">${esc(player.team)} · ${esc(player.position)}${player.jersey ? ` · #${esc(player.jersey)}` : ""}</p>
+          <p class="eyebrow">${esc(player.team)} ${posPill(player.position)}${player.jersey ? ` · #${esc(player.jersey)}` : ""}</p>
           <h2>${esc(player.name)}</h2>
           <span class="health-badge ${injured ? "hurt" : ""}">${esc(injuryText(player.injuryStatus))}</span>
         </div>
