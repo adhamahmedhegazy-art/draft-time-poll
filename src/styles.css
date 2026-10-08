@@ -663,3 +663,14 @@ footer .feedback-trigger:hover { color: var(--sun); }
 dialog { border-radius: var(--card-radius); overflow: hidden; }
 .player-modal { border-top-color: var(--accent-2); }
 .player-facts, .stat-grid { border-radius: 10px; overflow: hidden; }
+
+/* Standings: record, win %, games back (and points when the Commish fills them in) */
+.table-header, .standing-row { grid-template-columns: 60px minmax(0, 1fr) 90px 80px 60px; }
+.leaderboard.with-points .table-header, .leaderboard.with-points .standing-row { grid-template-columns: 60px minmax(0, 1fr) 90px 80px 60px 80px; }
+.standing-row .gb { color: var(--muted); }
+@media (max-width: 760px) {
+  .table-header, .standing-row { grid-template-columns: 30px minmax(0, 1fr) 54px 50px 34px; padding: 0 12px; gap: 4px; }
+  .leaderboard.with-points .table-header, .leaderboard.with-points .standing-row { grid-template-columns: 30px minmax(0, 1fr) 54px 50px 34px 50px; }
+  .standing-row strong { font-size: 17px; }
+  .team-name b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+}

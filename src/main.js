@@ -103,7 +103,7 @@ function renderScoreboard() {
   const lastTrade = state.trades[0];
   const votes = state.polls.reduce((sum, poll) => sum + (poll.total || 0), 0);
   const tiles = [
-    ["League leader", leader ? leader.team : "TBD", leader ? `${leader.record} · ${leader.points} pts` : "Standings coming soon", "lead"],
+    ["League leader", leader ? leader.team : "TBD", leader ? [leader.record, leader.points && `${leader.points} pts`].filter(Boolean).join(" · ") : "Standings coming soon", "lead"],
     ["Open polls", String(state.polls.length), `${votes} ${votes === 1 ? "vote" : "votes"} cast`],
     ["Trades", String(state.trades.length), state.trades.length === 1 ? "official deal" : "official deals"],
     ["Latest deal", lastTrade ? `${lastTrade.a} ⇄ ${lastTrade.b}` : "Quiet so far", lastTrade ? lastTrade.time : "Nobody's pulled the trigger"],
@@ -305,17 +305,7 @@ function renderTab() {
       </div>
       ${errorBanner(state.error)}
       ${isCommish ? renderStandingsEditor(state.standings) : state.standings.length ? `
-        <div class="leaderboard">
-          <div class="table-header"><span>#</span><span>Team</span><span>Record</span><span>Points</span></div>
-          ${state.standings.map((team, index) => `
-            <div class="standing-row ${index < 3 ? `podium rank-${index + 1}` : ""}">
-              <span class="rank"><b>${index + 1}</b></span>
-              <span class="team-name"><b>${esc(team.team)}</b><small>${esc(team.manager)}</small></span>
-              <strong>${esc(team.record)}</strong>
-              <strong>${esc(team.points)}</strong>
-            </div>
-          `).join("")}
-        </div>
+        ${renderStandingsTable(state.standings)}
       ` : `<div class="empty-state"><h4>The leaderboard is empty.</h4><p>Standings go up once the Commish posts them.</p></div>`}
     `,
     performers: () => renderPerformers(),
@@ -458,19 +448,54 @@ function renderTradeEditor() {
   `;
 }
 
+// Win % and games back are worked out from each record ("3-1-0" or "3–1"), so the Commish only types records.
+function parseRecord(record) {
+  const [w = 0, l = 0, t = 0] = (String(record).match(/\d+/g) || []).map(Number);
+  const games = w + l + t;
+  return { w, l, t, pct: games ? (w + t / 2) / games : 0 };
+}
+
+function renderStandingsTable(standings) {
+  const rows = standings.map((team) => ({ ...team, ...parseRecord(team.record) }));
+  const leader = rows.reduce((best, row) => (row.pct > best.pct ? row : best), rows[0]);
+  const showPoints = rows.some((row) => row.points);
+  const pct = (value) => (value === 1 ? "1.000" : value.toFixed(3).replace(/^0/, ""));
+  const gamesBack = (row) => {
+    const gb = ((leader.w - row.w) + (row.l - leader.l)) / 2;
+    return gb <= 0 ? "–" : String(gb);
+  };
+  return `
+    <div class="leaderboard ${showPoints ? "with-points" : ""}">
+      <div class="table-header"><span>#</span><span>Team</span><span>Record</span><span>Win %</span><span>GB</span>${showPoints ? "<span>Points</span>" : ""}</div>
+      ${rows.map((row) => {
+        const rank = 1 + rows.filter((other) => other.pct > row.pct).length;
+        return `
+        <div class="standing-row ${rank <= 3 ? `podium rank-${rank}` : ""}">
+          <span class="rank"><b>${rank}</b></span>
+          <span class="team-name"><b>${esc(row.team)}</b><small>${esc(row.manager)}</small></span>
+          <strong>${esc(row.record)}</strong>
+          <strong>${pct(row.pct)}</strong>
+          <strong class="gb">${gamesBack(row)}</strong>
+          ${showPoints ? `<strong>${esc(row.points)}</strong>` : ""}
+        </div>`;
+      }).join("")}
+    </div>
+  `;
+}
+
 function renderStandingsEditor(standings) {
   const rows = standings.length ? standings : [{ team: "", manager: "", record: "", points: "" }];
   return `
     <form class="commish-editor" id="standings-form">
       <p class="eyebrow">COMMISH ONLY · EDIT THE LEADERBOARD (TOP ROW = 1ST PLACE)</p>
       <div class="standings-editor">
-        <div class="standings-edit-row header"><span>#</span><span>Team</span><span>Manager</span><span>Record</span><span>Points</span><span></span></div>
+        <div class="standings-edit-row header"><span>#</span><span>Team</span><span>Manager</span><span>Record</span><span>Points (optional)</span><span></span></div>
         ${rows.map((row, index) => `
           <div class="standings-edit-row" data-row>
             <span>${index + 1}</span>
             <input name="team" value="${esc(row.team)}" maxlength="60" aria-label="Team" />
             <input name="manager" value="${esc(row.manager)}" maxlength="40" aria-label="Manager" />
-            <input name="record" value="${esc(row.record)}" maxlength="20" aria-label="Record" placeholder="0–0" />
+            <input name="record" value="${esc(row.record)}" maxlength="20" aria-label="Record" placeholder="3-1-0" />
             <input name="points" value="${esc(row.points)}" maxlength="20" aria-label="Points" />
             <button type="button" class="delete-chip" data-remove-row aria-label="Remove row">×</button>
           </div>

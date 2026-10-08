@@ -156,13 +156,18 @@ const seedFootballTrades = [
   ["SEP 28", "Fourth & Wrong", "Bench Mob", "D. Henry", "2027 2nd + $18 FAAB", "ACCEPTED"],
 ];
 
+// Football standings as of week 4, copied from the ESPN league page.
 const seedFootballStandings = [
-  ["Sunday Scaries", "Priya", "5–0", "682"],
-  ["Fourth & Wrong", "Adham", "4–1", "641"],
-  ["Blitz Brigade", "Chris", "3–2", "608"],
-  ["End Zone Empire", "Nadia", "3–2", "594"],
-  ["Bench Mob", "Omar", "2–3", "551"],
-  ["Hail Mary Heroes", "Dev", "1–4", "497"],
+  ["Tiger's Talente…", "Tiger Xu", "4-0-0", ""],
+  ["algoon", "Ruben Jing", "3-1-0", ""],
+  ["Adham's Astound…", "Adham Hegazy", "3-1-0", ""],
+  ["Bens Favorite Boy", "Ethan Dai", "2-2-0", ""],
+  ["Gimme Moore", "Ak G", "2-2-0", ""],
+  ["let james cook", "Alan Zhang", "2-2-0", ""],
+  ["shabbat shalom", "Alex Guo", "1-3-0", ""],
+  ["JSN's mommy", "Richard Zhai", "1-3-0", ""],
+  ["gabe owners", "lixing shen", "1-3-0", ""],
+  ["the naberhood b…", "Vedh Kollu", "1-3-0", ""],
 ];
 
 if (!getMeta("seeded")) {
@@ -174,6 +179,16 @@ if (!getMeta("seeded")) {
     const insertStanding = db.prepare("INSERT INTO standings (league, position, team, manager, record, points) VALUES ('football', ?, ?, ?, ?, ?)");
     seedFootballStandings.forEach((row, index) => insertStanding.run(index, ...row));
     setMeta("seeded", Date.now());
+  });
+}
+
+// One-time swap of the placeholder football standings for the real league table (runs once, later edits stick).
+if (!getMeta("football_standings_v2")) {
+  transaction(() => {
+    db.prepare("DELETE FROM standings WHERE league = 'football'").run();
+    const insertStanding = db.prepare("INSERT INTO standings (league, position, team, manager, record, points) VALUES ('football', ?, ?, ?, ?, ?)");
+    seedFootballStandings.forEach((row, index) => insertStanding.run(index, ...row));
+    setMeta("football_standings_v2", Date.now());
   });
 }
 
