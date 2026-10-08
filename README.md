@@ -11,7 +11,7 @@ The server has no npm dependencies: it uses Node's built-in `node:http` and `nod
 - **Commish Announcement**: the commissioner edits it right on the page (title + message, `**bold**`, blank line between paragraphs) and can post it to both leagues at once.
 - **Forum**: each league has its own forum. Anyone signed in can start a post or reply; people can delete their own posts and the commissioner can delete anything.
 - **League Polls**: votes are saved in SQLite, one per account per poll. Results show after you vote. The commissioner sees who voted and can remove a vote.
-- **Trade Wire and Leaderboard**: only the commissioner can add or edit them. Edit forms appear on those tabs when the commissioner is signed in.
+- **Trade & Waiver Wire and Leaderboard**: only the commissioner can add or edit them. Edit forms (trades, adds & drops, standings) appear on those tabs when the commissioner is signed in.
 - **ADP & Rankings** (basketball tab): ESPN Fantasy Basketball rankings, ADP and stats for the top 300 players, pulled from ESPN every 12 hours and cached in SQLite. Page views never call ESPN.
 - **Football Top 100** (football tab): ESPN's PPR top 100 with ADP, % rostered, season points, points per game and projections. Refreshed the same way.
 - **Top performers**: basketball shows today's game leaders (or last night's before tip-off); football shows this week's passing, rushing and receiving leaders. One ESPN scoreboard request, cached for 30 minutes.

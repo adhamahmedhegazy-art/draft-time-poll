@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { footballTrades, footballMoves } from "./seed-football-wire.js";
 
 const dbPath = process.env.COMMISH_DB || new URL("../data/commish.db", import.meta.url).pathname;
 mkdirSync(dirname(dbPath), { recursive: true });
@@ -48,6 +49,16 @@ db.exec(`
     give TEXT NOT NULL,
     get TEXT NOT NULL,
     tag TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS moves (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    league TEXT NOT NULL,
+    time_label TEXT NOT NULL,
+    team TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    added TEXT NOT NULL,
+    dropped TEXT NOT NULL,
     created_at INTEGER NOT NULL
   );
   CREATE TABLE IF NOT EXISTS standings (
@@ -141,7 +152,7 @@ export function transaction(fn) {
 }
 
 // First-run seed. The original polls are kept (vote counts start fresh because the old numbers were placeholders),
-// the basketball Trade Wire and Leaderboard start empty, and football keeps its original entries.
+// the basketball Trade & Waiver Wire and Leaderboard start empty, and football gets the real league data loaded below.
 const seedPolls = [
   ["basketball-draft-time", "basketball", "What time should the draft be?", "Vote now", ["2:30 PM", "8:00 PM"]],
   ["basketball-playoffs", "basketball", "How many teams should make the playoffs?", "Closes Friday", ["4 teams", "6 teams", "8 teams"]],
@@ -150,32 +161,25 @@ const seedPolls = [
   ["football-kicker", "football", "The eternal question: keep kickers?", "Closes Monday", ["Keep the chaos", "Abolish kickers"]],
 ];
 
-const seedFootballTrades = [
-  ["48 MIN AGO", "Sunday Scaries", "Fourth & Wrong", "J. Jefferson", "J. Gibbs + 2027 1st", "BREAKING"],
-  ["MONDAY", "Blitz Brigade", "End Zone Empire", "L. Jackson", "J. Burrow + D. Smith", "ACCEPTED"],
-  ["SEP 28", "Fourth & Wrong", "Bench Mob", "D. Henry", "2027 2nd + $18 FAAB", "ACCEPTED"],
-];
 
 // Football standings as of week 4, copied from the ESPN league page.
 const seedFootballStandings = [
   ["Tiger's Talente…", "Tiger Xu", "4-0-0", ""],
   ["algoon", "Ruben Jing", "3-1-0", ""],
-  ["Adham's Astound…", "Adham Hegazy", "3-1-0", ""],
+  ["Adham's Astounding Team", "Adham Hegazy", "3-1-0", ""],
   ["Bens Favorite Boy", "Ethan Dai", "2-2-0", ""],
   ["Gimme Moore", "Ak G", "2-2-0", ""],
   ["let james cook", "Alan Zhang", "2-2-0", ""],
   ["shabbat shalom", "Alex Guo", "1-3-0", ""],
   ["JSN's mommy", "Richard Zhai", "1-3-0", ""],
   ["gabe owners", "lixing shen", "1-3-0", ""],
-  ["the naberhood b…", "Vedh Kollu", "1-3-0", ""],
+  ["the naberhood bully", "Vedh Kollu", "1-3-0", ""],
 ];
 
 if (!getMeta("seeded")) {
   transaction(() => {
     const insertPoll = db.prepare("INSERT OR IGNORE INTO polls (id, league, position, question, deadline, options) VALUES (?, ?, ?, ?, ?, ?)");
     seedPolls.forEach(([id, league, question, deadline, options], index) => insertPoll.run(id, league, index, question, deadline, JSON.stringify(options)));
-    const insertTrade = db.prepare("INSERT INTO trades (league, time_label, team_a, team_b, give, get, tag, created_at) VALUES ('football', ?, ?, ?, ?, ?, ?, ?)");
-    [...seedFootballTrades].reverse().forEach((trade, index) => insertTrade.run(...trade, index));
     const insertStanding = db.prepare("INSERT INTO standings (league, position, team, manager, record, points) VALUES ('football', ?, ?, ?, ?, ?)");
     seedFootballStandings.forEach((row, index) => insertStanding.run(index, ...row));
     setMeta("seeded", Date.now());
@@ -189,6 +193,18 @@ if (!getMeta("football_standings_v2")) {
     const insertStanding = db.prepare("INSERT INTO standings (league, position, team, manager, record, points) VALUES ('football', ?, ?, ?, ?, ?)");
     seedFootballStandings.forEach((row, index) => insertStanding.run(index, ...row));
     setMeta("football_standings_v2", Date.now());
+  });
+}
+
+// One-time swap of the placeholder football trades for the real Trade & Waiver Wire.
+if (!getMeta("football_wire_v1")) {
+  transaction(() => {
+    db.prepare("DELETE FROM trades WHERE league = 'football'").run();
+    const insertTrade = db.prepare("INSERT INTO trades (league, time_label, team_a, team_b, give, get, tag, created_at) VALUES ('football', ?, ?, ?, ?, ?, ?, ?)");
+    footballTrades.forEach((trade) => insertTrade.run(...trade));
+    const insertMove = db.prepare("INSERT INTO moves (league, time_label, team, kind, added, dropped, created_at) VALUES ('football', ?, ?, ?, ?, ?, ?)");
+    footballMoves.forEach((move) => insertMove.run(...move));
+    setMeta("football_wire_v1", Date.now());
   });
 }
 

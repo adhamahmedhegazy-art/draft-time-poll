@@ -105,7 +105,7 @@ function renderScoreboard() {
   const tiles = [
     ["League leader", leader ? leader.team : "TBD", leader ? [leader.record, leader.points && `${leader.points} pts`].filter(Boolean).join(" · ") : "Standings coming soon", "lead"],
     ["Open polls", String(state.polls.length), `${votes} ${votes === 1 ? "vote" : "votes"} cast`],
-    ["Trades", String(state.trades.length), state.trades.length === 1 ? "official deal" : "official deals"],
+    ["Trades", String(state.trades.length), `${(state.moves || []).length} adds & drops`],
     ["Latest deal", lastTrade ? `${lastTrade.a} ⇄ ${lastTrade.b}` : "Quiet so far", lastTrade ? lastTrade.time : "Nobody's pulled the trigger"],
   ];
   return tiles.map(([label, value, sub, cls = ""]) => `<div class="score-tile ${cls}"><small>${esc(label)}</small><b>${esc(value)}</b><span>${esc(sub)}</span></div>`).join("");
@@ -205,7 +205,7 @@ function tabsFor(key) {
   return [
     ["announcement", icons.megaphone, "Commish Announcement"],
     ["polls", icons.poll, "League Polls"],
-    ["trades", icons.trade, "Trade Wire"],
+    ["trades", icons.trade, "Trade & Waiver Wire"],
     ["leaderboard", icons.trophy, "Leaderboard"],
     ["forum", icons.chat, "Forum"],
     ["performers", icons.star, key === "basketball" ? "Top Today" : "Top This Week"],
@@ -281,7 +281,7 @@ function renderTab() {
     `,
     trades: () => !state ? loadingPanel("the wire") : `
       <div class="section-intro">
-        <div><p class="eyebrow">Trade wire</p><h3>Deals & steals</h3></div>
+        <div><p class="eyebrow">Trade & waiver wire</p><h3>Trades</h3></div>
         <span>${state.trades.length} ${state.trades.length === 1 ? "trade" : "trades"}</span>
       </div>
       ${errorBanner(state.error)}
@@ -297,6 +297,7 @@ function renderTab() {
           </article>
         `).join("") : `<div class="empty-state"><h4>No trades yet.</h4><p>The Commish posts every official deal here.</p></div>`}
       </div>
+      ${renderMoves(state.moves || [])}
     `,
     leaderboard: () => !state ? loadingPanel("standings") : `
       <div class="section-intro">
@@ -445,6 +446,44 @@ function renderTradeEditor() {
       <button type="submit" class="send-button">Post to the wire ${icons.arrow}</button>
       <small class="form-error" id="trade-error"></small>
     </form>
+  `;
+}
+
+const moveKinds = { WAIVER: "Waiver claim", "ADD/DROP": "Add / drop", ADD: "Add", DROP: "Drop" };
+
+function renderMoves(moves) {
+  return `
+    <div class="section-intro wire-intro">
+      <div><p class="eyebrow">Waiver wire</p><h3>Adds & drops</h3></div>
+      <span>${moves.length} ${moves.length === 1 ? "move" : "moves"}</span>
+    </div>
+    ${isCommish ? `
+      <form class="commish-editor" id="move-form">
+        <p class="eyebrow">COMMISH ONLY · POST AN ADD OR DROP</p>
+        <div class="editor-grid">
+          <label>Team <input name="team" required maxlength="60" /></label>
+          <label>Type <select name="kind">${Object.entries(moveKinds).map(([key, label]) => `<option value="${key}">${label}</option>`).join("")}</select></label>
+          <label>Added <input name="added" maxlength="80" placeholder="Player, team, position" /></label>
+          <label>Dropped <input name="dropped" maxlength="80" placeholder="Player, team, position" /></label>
+          <label>When <input name="time" maxlength="30" placeholder="Defaults to today" /></label>
+        </div>
+        <button type="submit" class="send-button">Post to the wire ${icons.arrow}</button>
+        <small class="form-error" id="move-error"></small>
+      </form>` : ""}
+    ${moves.length ? `
+      <div class="move-list">
+        ${moves.map((move) => `
+          <div class="move-row">
+            <div class="move-meta"><span class="move-kind kind-${move.kind.replace(/\W/g, "").toLowerCase()}">${esc(moveKinds[move.kind] || move.kind)}</span><time>${esc(move.time)}</time></div>
+            <b class="move-team">${esc(move.team)}</b>
+            <div class="move-players">
+              ${move.added ? `<span class="move-add"><i>+</i>${esc(move.added)}</span>` : ""}
+              ${move.dropped ? `<span class="move-drop"><i>−</i>${esc(move.dropped)}</span>` : ""}
+            </div>
+            ${isCommish ? `<button class="delete-chip" data-delete-move="${move.id}" aria-label="Delete move">×</button>` : ""}
+          </div>`).join("")}
+      </div>
+    ` : `<div class="empty-state"><h4>No adds or drops yet.</h4><p>Waiver claims and free-agent pickups show up here.</p></div>`}
   `;
 }
 
@@ -873,6 +912,23 @@ function bindTabEvents() {
     button.addEventListener("click", async () => {
       if (!confirm("Delete this trade from the wire?")) return;
       await api(`/trades/${button.dataset.deleteTrade}`, { method: "DELETE" }).catch((error) => alert(error.message));
+      loadLeague();
+    });
+  });
+
+  document.querySelector("#move-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      await api(`/leagues/${activeLeague}/moves`, { method: "POST", body: Object.fromEntries(new FormData(event.currentTarget)) });
+      loadLeague();
+    } catch (error) {
+      document.querySelector("#move-error").textContent = error.message;
+    }
+  });
+  document.querySelectorAll("[data-delete-move]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!confirm("Delete this move from the wire?")) return;
+      await api(`/moves/${button.dataset.deleteMove}`, { method: "DELETE" }).catch((error) => alert(error.message));
       loadLeague();
     });
   });

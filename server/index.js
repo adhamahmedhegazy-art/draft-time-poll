@@ -188,6 +188,7 @@ const routes = [
       announcement: db.prepare("SELECT title, body, updated_at AS updatedAt FROM announcements WHERE league = ?").get(league) || null,
       polls: pollsFor(req, league),
       trades: db.prepare("SELECT id, time_label AS time, team_a AS a, team_b AS b, give, get, tag FROM trades WHERE league = ? ORDER BY created_at DESC, id DESC").all(league),
+      moves: db.prepare("SELECT id, time_label AS time, team, kind, added, dropped FROM moves WHERE league = ? ORDER BY created_at DESC, id DESC LIMIT 200").all(league),
       standings: db.prepare("SELECT team, manager, record, points FROM standings WHERE league = ? ORDER BY position").all(league),
     };
   }],
@@ -229,6 +230,26 @@ const routes = [
   ["DELETE", /^\/api\/trades\/(\d+)$/, (req, res, [id]) => {
     requireCommish(req);
     db.prepare("DELETE FROM trades WHERE id = ?").run(Number(id));
+    return { ok: true };
+  }],
+
+  ["POST", /^\/api\/leagues\/(\w+)\/moves$/, async (req, res, [league]) => {
+    requireCommish(req);
+    requireLeague(league);
+    const body = await readJson(req);
+    const move = { time: clean(body.time, 30), team: clean(body.team, 60), added: clean(body.added, 80), dropped: clean(body.dropped, 80) };
+    if (!move.team || (!move.added && !move.dropped)) throw new HttpError(400, "Add the team and at least one player");
+    const kinds = ["WAIVER", "ADD/DROP", "ADD", "DROP"];
+    move.kind = kinds.includes(String(body.kind).toUpperCase()) ? String(body.kind).toUpperCase() : move.added && move.dropped ? "ADD/DROP" : move.added ? "ADD" : "DROP";
+    if (!move.time) move.time = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase();
+    db.prepare("INSERT INTO moves (league, time_label, team, kind, added, dropped, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .run(league, move.time, move.team, move.kind, move.added, move.dropped, Date.now());
+    return { ok: true };
+  }],
+
+  ["DELETE", /^\/api\/moves\/(\d+)$/, (req, res, [id]) => {
+    requireCommish(req);
+    db.prepare("DELETE FROM moves WHERE id = ?").run(Number(id));
     return { ok: true };
   }],
 

@@ -674,3 +674,27 @@ dialog { border-radius: var(--card-radius); overflow: hidden; }
   .standing-row strong { font-size: 17px; }
   .team-name b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
 }
+
+/* Trade & Waiver Wire: adds and drops */
+.wire-intro { margin-top: 36px; }
+.move-list { background: var(--surface); border-radius: var(--card-radius); box-shadow: 0 18px 40px -22px rgb(0 0 0 / .55); overflow: hidden; }
+.move-row { position: relative; display: grid; grid-template-columns: 150px minmax(0, 200px) minmax(0, 1fr); gap: 14px; align-items: center; padding: 12px 20px; border-top: 1px solid #efeeec; }
+.move-row:first-child { border-top: 0; }
+.move-meta { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+.move-meta time { color: var(--muted); font-size: 12px; }
+.move-kind { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 2px 8px; border-radius: 4px; background: #111317; color: white; transform: skewX(-12deg); }
+.move-kind.kind-waiver { background: var(--accent-2); }
+.move-team { font-family: var(--head); font-size: 18px; font-weight: 700; line-height: 1.15; }
+.move-players { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; }
+.move-players span { display: inline-flex; align-items: center; gap: 6px; }
+.move-players i { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 4px; font-style: normal; font-weight: 700; color: white; font-size: 13px; line-height: 1; }
+.move-add i { background: #16a34a; }
+.move-drop { color: var(--muted); }
+.move-drop i { background: #dc2626; }
+.move-row .delete-chip { position: absolute; right: 8px; top: 8px; }
+@media (max-width: 760px) {
+  .move-row { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; padding: 12px 14px; }
+  .move-meta { grid-column: 2; grid-row: 1; align-items: flex-end; }
+  .move-team { grid-column: 1; grid-row: 1; }
+  .move-players { grid-column: 1 / -1; flex-direction: column; gap: 4px; }
+}
