@@ -220,6 +220,43 @@ button.performer-row:hover b { color: var(--accent); }
 .performer-line { font-weight: 700; font-size: 16px; text-align: right; font-variant-numeric: tabular-nums; }
 .performer-stat { font-size: 13px; font-weight: 500; color: var(--ink); }
 
+/* Accounts */
+.signed-in { font-size: 14px; color: var(--muted); }
+.auth-shell { max-width: 1080px; margin: 0 auto; padding: 0 clamp(16px, 5vw, 48px) 80px; }
+.auth-card { max-width: 420px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 28px; margin-top: 0; }
+.auth-card h2 { margin: 0; font-size: 24px; }
+.auth-card .muted { margin: 0 0 4px; }
+.auth-card .send-button { justify-self: start; }
+.auth-switch { justify-self: start; padding: 0; }
+
+/* Announcement */
+.letter-body p { font-size: 17px; line-height: 1.75; color: #333; margin: 0 0 16px; max-width: 680px; }
+.letter-body p:last-child { margin-bottom: 0; }
+.letter-body strong { color: var(--ink); }
+.single-form-fields { display: grid; gap: 12px; margin-bottom: 16px; }
+.commish-editor textarea { font-size: 14px; line-height: 1.6; }
+label.check { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+label.check input { width: auto; }
+
+/* Forum */
+.forum-compose { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 0 0 20px; padding: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.forum-compose .send-button { justify-self: end; }
+.forum-list { display: grid; gap: 8px; }
+.forum-item { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; padding: 14px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.forum-item:hover { border-color: #cfcbc8; }
+.forum-item b { font-weight: 600; }
+.forum-item small { color: var(--muted); font-size: 13px; }
+.back-link { padding: 0; margin-bottom: 16px; }
+.forum-post { padding: 16px 0; border-bottom: 1px solid var(--line); }
+.forum-op h3 { font-size: 22px; margin: 0 0 4px; }
+.forum-meta { margin: 0 0 6px; font-size: 13px; color: var(--muted); }
+.forum-meta b { color: var(--ink); font-weight: 600; }
+.forum-body p { margin: 0 0 10px; font-size: 15px; line-height: 1.6; }
+.forum-body p:last-child { margin-bottom: 0; }
+.forum-replies { margin-bottom: 20px; }
+.forum-replies .forum-post { padding-left: 16px; border-left: 2px solid var(--line); border-bottom: 0; }
+.link-button { border: 0; background: none; padding: 0; color: var(--danger); font-size: 13px; }
+
 /* Footer */
 footer { max-width: 1080px; margin: 0 auto; padding: 28px clamp(16px, 5vw, 48px) 40px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
 footer p { margin: 0; }
@@ -273,7 +310,7 @@ form small { color: var(--muted); font-size: 12px; }
 @keyframes reveal { from { opacity: 0; transform: translateY(6px); } }
 
 @media (max-width: 760px) {
-  .feedback-trigger span { display: none; }
+  .feedback-trigger span, .signed-in { display: none; }
   .hero { padding-top: 48px; padding-bottom: 28px; }
   .hero-copy { font-size: 16px; }
   .league-heading h2 span, .season-badge { display: none; }

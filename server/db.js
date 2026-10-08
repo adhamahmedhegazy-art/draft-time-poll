@@ -11,6 +11,9 @@ export const db = new DatabaseSync(dbPath);
 try {
   const columns = db.prepare("PRAGMA table_info(players)").all().map((column) => column.name);
   if (columns.length && !columns.includes("sport")) db.exec("DROP TABLE players; DROP TABLE IF EXISTS player_news; DELETE FROM meta WHERE key LIKE 'players_%';");
+  // Sessions used to be commissioner-only; now every session belongs to an account.
+  const sessionColumns = db.prepare("PRAGMA table_info(sessions)").all().map((column) => column.name);
+  if (sessionColumns.length && !sessionColumns.includes("user_id")) db.exec("DROP TABLE sessions;");
 } catch { /* fresh database */ }
 
 db.exec(`
@@ -55,10 +58,43 @@ db.exec(`
     record TEXT NOT NULL,
     points TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    name_key TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    is_commish INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS sessions (
     token TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     expires_at INTEGER NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS announcements (
+    league TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS forum_threads (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    league TEXT NOT NULL,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    last_activity INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS forum_threads_league ON forum_threads (league, last_activity DESC);
+  CREATE TABLE IF NOT EXISTS forum_posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    thread_id INTEGER NOT NULL REFERENCES forum_threads(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS forum_posts_thread ON forum_posts (thread_id, created_at);
   CREATE TABLE IF NOT EXISTS players (
     sport TEXT NOT NULL,
     id INTEGER NOT NULL,
@@ -139,4 +175,24 @@ if (!getMeta("seeded")) {
     seedFootballStandings.forEach((row, index) => insertStanding.run(index, ...row));
     setMeta("seeded", Date.now());
   });
+}
+
+// The commissioner's daily announcement, editable from the site. Both leagues start with the same message.
+const seedAnnouncement = {
+  title: "Daily League Update 🫡",
+  body: `The website is starting to come together and become a lot more polished. We’re still in the developing stages, though, so I’m completely open to **feedback across the board**. If there’s anything you think could be improved, added, changed, or just made easier to use, feel free to let me know. The goal is to make this something everyone actually enjoys using.
+
+Also, reminder that our **league meeting will be at 2:30 PM at Austin’s house**. Please try to be there so we can get everything sorted out and keep things moving.
+
+If you have any questions, concerns, or suggestions about anything league-related, **ping me directly** and I’ll get back to you.
+
+Lastly, I just want to say that I really appreciate everyone being a part of this. We’re still getting everything started, but I’m excited to see what this league becomes, and I’m glad we’re all doing it together. ❤️
+
+**See you guys at the meeting.**`,
+};
+
+if (!getMeta("announcement_seeded")) {
+  const insert = db.prepare("INSERT OR IGNORE INTO announcements (league, title, body, updated_at) VALUES (?, ?, ?, ?)");
+  ["basketball", "football"].forEach((league) => insert.run(league, seedAnnouncement.title, seedAnnouncement.body, Date.now()));
+  setMeta("announcement_seeded", Date.now());
 }

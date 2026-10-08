@@ -7,8 +7,11 @@ The server has no npm dependencies: it uses Node's built-in `node:http` and `nod
 
 ## What the server does
 
-- **League Polls**: votes are saved in SQLite. Each person votes once per poll: the browser gets a voter cookie and the voter's name is attached, and both are checked. Results show after you vote. The commissioner sees who voted and can remove a bogus vote.
-- **Trade Wire and Leaderboard**: only the commissioner can add or edit them. Use the small "Commish login" link in the footer, then edit forms appear on those tabs.
+- **Accounts**: everyone creates an account (name + password) before they can see the site, so every vote and post has a real name on it. The commissioner signs in as `COMMISH_USERNAME` (default `Adham`) with `COMMISH_PASSWORD`. Set `LEAGUE_INVITE_CODE` to require a code at sign-up so strangers can't join.
+- **Commish Announcement**: the commissioner edits it right on the page (title + message, `**bold**`, blank line between paragraphs) and can post it to both leagues at once.
+- **Forum**: each league has its own forum. Anyone signed in can start a post or reply; people can delete their own posts and the commissioner can delete anything.
+- **League Polls**: votes are saved in SQLite, one per account per poll. Results show after you vote. The commissioner sees who voted and can remove a vote.
+- **Trade Wire and Leaderboard**: only the commissioner can add or edit them. Edit forms appear on those tabs when the commissioner is signed in.
 - **ADP & Rankings** (basketball tab): ESPN Fantasy Basketball rankings, ADP and stats for the top 300 players, pulled from ESPN every 12 hours and cached in SQLite. Page views never call ESPN.
 - **Football Top 100** (football tab): ESPN's PPR top 100 with ADP, % rostered, season points, points per game and projections. Refreshed the same way.
 - **Top performers**: basketball shows today's game leaders (or last night's before tip-off); football shows this week's passing, rushing and receiving leaders. One ESPN scoreboard request, cached for 30 minutes.
@@ -62,7 +65,9 @@ Caddy obtains and renews HTTPS certificates automatically after DNS is configure
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `COMMISH_PASSWORD` | none | Commissioner password. Editing is off until it is set. |
+| `COMMISH_PASSWORD` | none | Commissioner password. There is no commissioner account until it is set. |
+| `COMMISH_USERNAME` | `Adham` | Name the commissioner signs in with. |
+| `LEAGUE_INVITE_CODE` | none | If set, people need this code to create an account. |
 | `PORT` | `8787` | API port (localhost only). |
 | `COMMISH_DB` | `data/commish.db` | SQLite file location. |
 | `ESPN_REFRESH_HOURS` | `12` | How often rankings are re-pulled from ESPN. |

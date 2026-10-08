@@ -10,6 +10,7 @@ const icons = {
   heart: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg>`,
   mail: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>`,
   star: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg>`,
+  chat: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>`,
   list: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>`,
   arrow: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>`,
 };
@@ -20,52 +21,33 @@ const leagueData = {
     kicker: "Hardwood Headquarters",
     season: "2026–27 Season",
     icon: icons.basketball,
-    announcement: {
-      date: "OCTOBER 6, 2026",
-      title: "Welcome back, family.",
-      body: "Another season means another chapter in the story we keep writing together. The late-night waiver claims, the impossible comebacks, and yes—even the trades we regret—are what make this league ours. Compete hard, laugh often, and remember: the real trophy is the group chat we somehow haven’t muted.",
-      signature: "With love (and full veto power),",
-      author: "Commissioner Adham",
-    },
   },
   football: {
     label: "Football",
     kicker: "Gridiron Headquarters",
     season: "2026 Season",
     icon: icons.football,
-    announcement: {
-      date: "OCTOBER 6, 2026",
-      title: "Every Sunday, together.",
-      body: "Through every last-second touchdown and every lineup left tragically on the bench, this league keeps bringing us back to the same place: together. Thank you for showing up, talking trash, and making Sundays mean a little more. May your players stay healthy and your victories remain completely undeserved.",
-      signature: "Proud to be your commissioner,",
-      author: "Adham",
-    },
   },
 };
 
 let activeLeague = "basketball";
 let activeTab = "announcement";
+let user = null;
+let sessionChecked = false;
+let inviteRequired = false;
+let authMode = "register";
 let isCommish = false;
-let editingEnabled = false;
+const forumState = { basketball: { list: null, open: null, thread: null }, football: { list: null, open: null, thread: null } };
 const leagueState = {};
 const newRankings = () => ({ data: null, loading: false, query: "", position: "ALL", sort: "rank", shown: 50 });
 const rankingsBySport = { basketball: newRankings(), football: newRankings() };
 const performersBySport = { basketball: { data: null, loading: false }, football: { data: null, loading: false } };
 let rankings = rankingsBySport[activeLeague];
 let performers = performersBySport[activeLeague];
-let voterName = readStorage("natscommish:name") || "";
 
 const app = document.querySelector("#app");
 
 const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
-
-function readStorage(key) {
-  try { return localStorage.getItem(key); } catch { return null; }
-}
-
-function writeStorage(key, value) {
-  try { localStorage.setItem(key, value); } catch { /* private mode */ }
-}
 
 async function api(path, options = {}) {
   const response = await fetch(`/api${path}`, {
@@ -75,9 +57,30 @@ async function api(path, options = {}) {
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
   const data = await response.json().catch(() => ({}));
+  if (response.status === 401 && user && !path.startsWith("/login")) {
+    setUser(null);
+    renderShell();
+  }
   if (!response.ok) throw new Error(data.error || "The league office is not answering right now.");
   return data;
 }
+
+function setUser(next) {
+  user = next;
+  isCommish = Boolean(next?.commish);
+}
+
+// Light formatting for posts and announcements: **bold**, blank line = new paragraph, line break = <br>.
+const richText = (text) => String(text ?? "").trim().split(/\n{2,}/).map((paragraph) =>
+  `<p>${esc(paragraph).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\n/g, "<br>")}</p>`).join("");
+
+const timeAgo = (time) => {
+  const minutes = Math.round((Date.now() - time) / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1440) return `${Math.round(minutes / 60)}h ago`;
+  return new Date(time).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+};
 
 async function loadLeague(key = activeLeague) {
   try {
@@ -96,7 +99,7 @@ function renderShell() {
         <span><strong>Nats Commish</strong></span>
       </a>
       <div class="header-actions">
-        ${isCommish ? `<button class="text-button" id="logout-button">Commish mode · Log out</button>` : ""}
+        ${user ? `<span class="signed-in">${esc(user.name)}${isCommish ? " · Commish" : ""}</span><button class="text-button" id="logout-button">Log out</button>` : ""}
         <button class="feedback-trigger">${icons.mail}<span>Feedback</span></button>
       </div>
     </header>
@@ -108,7 +111,7 @@ function renderShell() {
         <p class="hero-copy">Announcements, votes, trades and standings from your commissioner.</p>
       </section>
 
-      <section class="league-shell">
+      ${!user ? renderAuth() : `<section class="league-shell">
         <div class="league-switcher" role="tablist" aria-label="Choose fantasy league">
           ${Object.entries(leagueData).map(([key, league]) => `
             <button class="league-button ${key === activeLeague ? "active" : ""}" data-league="${key}" role="tab" aria-selected="${key === activeLeague}">
@@ -118,13 +121,12 @@ function renderShell() {
           `).join("")}
         </div>
         <div id="league-content"></div>
-      </section>
+      </section>`}
     </main>
 
     <footer>
       <p class="copyright">© 2026 Nats Commish · natscommish.com</p>
       <button class="feedback-trigger footer-link">Send feedback</button>
-      ${isCommish || !editingEnabled ? "" : `<button class="commish-login-link" id="login-open">Commish login</button>`}
     </footer>
 
     <dialog id="feedback-modal">
@@ -149,25 +151,32 @@ function renderShell() {
       </form>
     </dialog>
 
-    <dialog id="login-modal">
-      <button class="modal-close" aria-label="Close login">×</button>
-      <p class="eyebrow">COMMISSIONER ONLY</p>
-      <h2>Prove it.</h2>
-      <p>Log in to edit the Trade Wire and the Leaderboard.</p>
-      <form id="login-form" class="single-form">
-        <label>Password <input name="password" type="password" required autocomplete="current-password" /></label>
-        <button type="submit" class="send-button">Unlock Commish mode ${icons.arrow}</button>
-        <small class="form-error" id="login-error"></small>
-      </form>
-    </dialog>
-
     <dialog id="player-modal" class="player-modal">
       <button class="modal-close" aria-label="Close player card">×</button>
       <div id="player-card"></div>
     </dialog>
   `;
-  renderLeague();
+  if (user) renderLeague();
   bindShellEvents();
+}
+
+function renderAuth() {
+  if (!sessionChecked) return `<section class="auth-shell"><p class="muted">Loading…</p></section>`;
+  const register = authMode === "register";
+  return `
+    <section class="auth-shell">
+      <form class="auth-card single-form" id="auth-form">
+        <h2>${register ? "Create your account" : "Welcome back"}</h2>
+        <p class="muted">${register ? "Everyone in the league signs in with their name, so we know who's voting and posting." : "Sign in with the name and password you picked."}</p>
+        <label>Your name <input name="name" required maxlength="24" autocomplete="username" placeholder="What the league calls you" /></label>
+        <label>Password <input name="password" type="password" required minlength="${register ? 6 : 1}" autocomplete="${register ? "new-password" : "current-password"}" /></label>
+        ${register && inviteRequired ? `<label>League code <input name="invite" required autocomplete="off" placeholder="Ask the Commish" /></label>` : ""}
+        <button type="submit" class="send-button">${register ? "Create account" : "Sign in"} ${icons.arrow}</button>
+        <small class="form-error" id="auth-error"></small>
+        <button type="button" class="text-button auth-switch" id="auth-switch">${register ? "Already have an account? Sign in" : "New here? Create an account"}</button>
+      </form>
+    </section>
+  `;
 }
 
 function tabsFor(key) {
@@ -176,6 +185,7 @@ function tabsFor(key) {
     ["polls", icons.poll, "League Polls"],
     ["trades", icons.trade, "Trade Wire"],
     ["leaderboard", icons.trophy, "Leaderboard"],
+    ["forum", icons.chat, "Forum"],
     ["performers", icons.star, key === "basketball" ? "Top Today" : "Top This Week"],
     ["rankings", icons.list, key === "basketball" ? "ADP & Rankings" : "Top 100"],
   ];
@@ -221,26 +231,25 @@ function renderTab() {
   rankings = rankingsBySport[activeLeague];
   performers = performersBySport[activeLeague];
   const renderers = {
-    announcement: () => `
-      <article class="announcement-card">
-        <div class="letter">
-          <div class="letter-meta"><span>From the Commish</span><time>${league.announcement.date}</time></div>
-          <h3>${league.announcement.title}</h3>
-          <p>${league.announcement.body}</p>
-          <div class="signature"><span>${league.announcement.signature}</span><strong>${league.announcement.author}</strong></div>
-        </div>
-      </article>
+    announcement: () => !state ? loadingPanel("the announcement") : `
+      ${isCommish ? renderAnnouncementEditor(state.announcement) : ""}
+      ${state.announcement ? `
+        <article class="announcement-card">
+          <div class="letter">
+            <div class="letter-meta"><span>Commish Announcement</span><time>${esc(new Date(state.announcement.updatedAt).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }))}</time></div>
+            <h3>${esc(state.announcement.title)}</h3>
+            <div class="letter-body">${richText(state.announcement.body)}</div>
+          </div>
+        </article>
+      ` : `<div class="empty-state"><h4>No announcement yet.</h4><p>The Commish posts a new note here every day.</p></div>`}
     `,
+    forum: () => renderForum(),
     polls: () => !state ? loadingPanel("polls") : `
       <div class="section-intro">
         <div><p class="eyebrow">League polls</p><h3>Your vote matters</h3></div>
         <span>${state.polls.length} open</span>
       </div>
       ${errorBanner(state.error)}
-      <form class="voter-bar" id="voter-form">
-        <label>Voting as <input name="voter" value="${esc(voterName)}" maxlength="40" placeholder="Your name (one vote per person)" autocomplete="name" /></label>
-        <small>Every vote is counted on the league server: one per person, per poll, with your name attached.</small>
-      </form>
       <div class="poll-grid">
         ${state.polls.map((poll, index) => renderPoll(poll, index)).join("")}
       </div>
@@ -308,13 +317,101 @@ function renderPoll(poll, index) {
             </button>`;
         }).join("")}
       </div>
-      <p class="vote-status">${voted ? "✓ Vote locked in" : "One vote per person. Your name is attached."}</p>
+      <p class="vote-status">${voted ? "✓ Vote locked in" : `One vote per person. You\u2019re voting as ${esc(user?.name)}.`}</p>
       ${isCommish && poll.voters?.length ? `
         <div class="voter-list">
           <p class="eyebrow">WHO VOTED</p>
           ${poll.voters.map((voter) => `<span>${esc(voter.name)} → ${esc(poll.options[voter.option])}<button data-remove-vote="${esc(voter.name)}" aria-label="Remove ${esc(voter.name)}'s vote">×</button></span>`).join("")}
         </div>` : ""}
     </article>
+  `;
+}
+
+function renderAnnouncementEditor(announcement) {
+  return `
+    <form class="commish-editor" id="announcement-form">
+      <p class="eyebrow">Commish only · Update the daily announcement</p>
+      <div class="single-form-fields">
+        <label>Title <input name="title" required maxlength="120" value="${esc(announcement?.title ?? "")}" /></label>
+        <label>Message <textarea name="body" required rows="10">${esc(announcement?.body ?? "")}</textarea></label>
+        <small class="muted">Wrap words in **double stars** for bold. Leave a blank line between paragraphs.</small>
+        <label class="check"><input type="checkbox" name="bothLeagues" checked /> Post to both basketball and football</label>
+      </div>
+      <button type="submit" class="send-button">Publish announcement ${icons.arrow}</button>
+      <small class="form-error" id="announcement-error"></small>
+    </form>
+  `;
+}
+
+function loadForum() {
+  const sport = activeLeague;
+  const state = forumState[sport];
+  api(`/leagues/${sport}/forum`)
+    .then((data) => { state.list = data.threads; })
+    .catch((error) => { state.list = []; state.error = error.message; })
+    .finally(() => { if (activeTab === "forum" && activeLeague === sport) renderTab(); });
+}
+
+function loadThread(id) {
+  const sport = activeLeague;
+  const state = forumState[sport];
+  state.open = id;
+  state.thread = null;
+  api(`/forum/${id}`)
+    .then((data) => { state.thread = data; })
+    .catch((error) => { state.thread = { error: error.message }; })
+    .finally(() => { if (activeTab === "forum" && activeLeague === sport) renderTab(); });
+}
+
+function renderForum() {
+  const state = forumState[activeLeague];
+  if (state.open) {
+    if (!state.thread) return loadingPanel("the conversation");
+    if (state.thread.error) return `<button class="text-button back-link" id="forum-back">← All posts</button><div class="empty-state"><h4>${esc(state.thread.error)}</h4></div>`;
+    const { thread, posts } = state.thread;
+    return `
+      <button class="text-button back-link" id="forum-back">← All posts</button>
+      <article class="forum-post forum-op">
+        <h3>${esc(thread.title)}</h3>
+        <p class="forum-meta"><b>${esc(thread.author)}</b> · ${timeAgo(thread.createdAt)}${thread.canDelete ? ` · <button class="link-button" data-delete-thread="${thread.id}">Delete</button>` : ""}</p>
+        <div class="forum-body">${richText(thread.body)}</div>
+      </article>
+      <div class="forum-replies">
+        ${posts.map((post) => `
+          <article class="forum-post">
+            <p class="forum-meta"><b>${esc(post.author)}</b> · ${timeAgo(post.createdAt)}${post.canDelete ? ` · <button class="link-button" data-delete-reply="${post.id}">Delete</button>` : ""}</p>
+            <div class="forum-body">${richText(post.body)}</div>
+          </article>`).join("")}
+      </div>
+      <form class="forum-compose single-form" id="reply-form">
+        <label>Reply as ${esc(user.name)} <textarea name="body" required rows="3" maxlength="4000" placeholder="Say something…"></textarea></label>
+        <button type="submit" class="send-button">Reply</button>
+        <small class="form-error" id="reply-error"></small>
+      </form>
+    `;
+  }
+  if (!state.list) {
+    loadForum();
+    return loadingPanel("the forum");
+  }
+  return `
+    <div class="section-intro">
+      <div><p class="eyebrow">Forum</p><h3>Talk it out</h3></div>
+      <span>${state.list.length} ${state.list.length === 1 ? "post" : "posts"}</span>
+    </div>
+    <form class="forum-compose single-form" id="thread-form">
+      <label>Start a conversation <input name="title" required maxlength="120" placeholder="Title" /></label>
+      <textarea name="body" required rows="3" maxlength="4000" placeholder="What's on your mind?" aria-label="Post"></textarea>
+      <button type="submit" class="send-button">Post</button>
+      <small class="form-error" id="thread-error"></small>
+    </form>
+    <div class="forum-list">
+      ${state.list.length ? state.list.map((thread) => `
+        <button class="forum-item" data-thread="${thread.id}">
+          <b>${esc(thread.title)}</b>
+          <small>${esc(thread.author)} · ${thread.replies} ${thread.replies === 1 ? "reply" : "replies"} · active ${timeAgo(thread.lastActivity)}</small>
+        </button>`).join("") : `<div class="empty-state"><h4>No posts yet.</h4><p>Be the first to start a conversation.</p></div>`}
+    </div>
   `;
 }
 
@@ -601,47 +698,94 @@ function bindShellEvents() {
     window.location.href = `mailto:adham@natscommish.com?subject=${subject}&body=${body}`;
   });
 
-  document.querySelector("#login-open")?.addEventListener("click", () => document.querySelector("#login-modal").showModal());
-  document.querySelector("#login-form").addEventListener("submit", async (event) => {
+  document.querySelector("#auth-switch")?.addEventListener("click", () => {
+    authMode = authMode === "register" ? "login" : "register";
+    renderShell();
+  });
+  document.querySelector("#auth-form")?.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const button = event.currentTarget.querySelector("[type=submit]");
+    button.disabled = true;
     try {
-      await api("/login", { method: "POST", body: { password: new FormData(event.currentTarget).get("password") } });
-      isCommish = true;
-      await loadLeague();
+      const data = await api(authMode === "register" ? "/register" : "/login", { method: "POST", body: Object.fromEntries(new FormData(event.currentTarget)) });
+      setUser(data.user);
+      Object.keys(leagueState).forEach((key) => delete leagueState[key]);
       renderShell();
+      loadLeague();
     } catch (error) {
-      document.querySelector("#login-error").textContent = error.message;
+      document.querySelector("#auth-error").textContent = error.message;
+      button.disabled = false;
     }
   });
   document.querySelector("#logout-button")?.addEventListener("click", async () => {
     await api("/logout", { method: "POST" }).catch(() => {});
-    isCommish = false;
-    await loadLeague();
+    setUser(null);
+    authMode = "login";
     renderShell();
   });
 }
 
 function bindTabEvents() {
-  const voterInput = document.querySelector("#voter-form input");
-  voterInput?.addEventListener("input", () => {
-    voterName = voterInput.value;
-    writeStorage("natscommish:name", voterName);
+  document.querySelector("#announcement-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    try {
+      await api(`/leagues/${activeLeague}/announcement`, { method: "PUT", body: { title: data.get("title"), body: data.get("body"), bothLeagues: data.get("bothLeagues") === "on" } });
+      Object.keys(leagueState).forEach((key) => { if (key !== activeLeague) delete leagueState[key]; });
+      loadLeague();
+    } catch (error) {
+      document.querySelector("#announcement-error").textContent = error.message;
+    }
   });
-  document.querySelector("#voter-form")?.addEventListener("submit", (event) => event.preventDefault());
+
+  const forum = forumState[activeLeague];
+  document.querySelector("#forum-back")?.addEventListener("click", () => {
+    forum.open = null;
+    forum.list = null;
+    renderTab();
+  });
+  document.querySelectorAll("[data-thread]").forEach((button) => button.addEventListener("click", () => {
+    loadThread(Number(button.dataset.thread));
+    renderTab();
+  }));
+  document.querySelector("#thread-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      const { id } = await api(`/leagues/${activeLeague}/forum`, { method: "POST", body: Object.fromEntries(new FormData(event.currentTarget)) });
+      loadThread(id);
+      renderTab();
+    } catch (error) {
+      document.querySelector("#thread-error").textContent = error.message;
+    }
+  });
+  document.querySelector("#reply-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      await api(`/forum/${forum.open}/replies`, { method: "POST", body: Object.fromEntries(new FormData(event.currentTarget)) });
+      loadThread(forum.open);
+    } catch (error) {
+      document.querySelector("#reply-error").textContent = error.message;
+    }
+  });
+  document.querySelector("[data-delete-thread]")?.addEventListener("click", async (event) => {
+    if (!confirm("Delete this post and all its replies?")) return;
+    await api(`/forum/${event.currentTarget.dataset.deleteThread}`, { method: "DELETE" }).catch((error) => alert(error.message));
+    forum.open = null;
+    forum.list = null;
+    renderTab();
+  });
+  document.querySelectorAll("[data-delete-reply]").forEach((button) => button.addEventListener("click", async () => {
+    if (!confirm("Delete this reply?")) return;
+    await api(`/forum/replies/${button.dataset.deleteReply}`, { method: "DELETE" }).catch((error) => alert(error.message));
+    loadThread(forum.open);
+  }));
 
   document.querySelectorAll("[data-poll] [data-option]").forEach((button) => {
     button.addEventListener("click", async () => {
       const card = button.closest("[data-poll]");
-      const status = card.querySelector(".vote-status");
-      if (voterName.trim().length < 2) {
-        status.textContent = "Add your name above first, then vote.";
-        status.classList.add("form-error");
-        voterInput.focus();
-        return;
-      }
       card.querySelectorAll("[data-option]").forEach((option) => { option.disabled = true; });
       try {
-        const { polls } = await api(`/polls/${card.dataset.poll}/vote`, { method: "POST", body: { option: Number(button.dataset.option), name: voterName } });
+        const { polls } = await api(`/polls/${card.dataset.poll}/vote`, { method: "POST", body: { option: Number(button.dataset.option) } });
         leagueState[activeLeague].polls = polls;
         renderTab();
       } catch (error) {
@@ -737,12 +881,14 @@ function bindTabEvents() {
 }
 
 renderShell();
-loadLeague();
 api("/session")
   .then((session) => {
-    isCommish = session.commish;
-    editingEnabled = session.editingEnabled;
-    if (isCommish) loadLeague();
-    renderShell();
+    inviteRequired = session.inviteRequired;
+    setUser(session.user);
   })
-  .catch(() => {});
+  .catch(() => {})
+  .finally(() => {
+    sessionChecked = true;
+    renderShell();
+    if (user) loadLeague();
+  });
