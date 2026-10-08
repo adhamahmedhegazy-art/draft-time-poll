@@ -698,3 +698,12 @@ dialog { border-radius: var(--card-radius); overflow: hidden; }
   .move-team { grid-column: 1; grid-row: 1; }
   .move-players { grid-column: 1 / -1; flex-direction: column; gap: 4px; }
 }
+
+/* Forum threads sit in white cards so they read on the league color */
+.forum-post { background: var(--surface); border-radius: var(--card-radius); padding: 18px 22px; margin-bottom: 10px; border-bottom: 0; box-shadow: 0 18px 40px -22px rgb(0 0 0 / .55); }
+.forum-op { box-shadow: inset 0 4px 0 var(--accent-2), 0 18px 40px -22px rgb(0 0 0 / .55); }
+.forum-replies { margin-left: 28px; }
+.forum-replies .forum-post { padding-left: 22px; border-left: 0; box-shadow: inset 4px 0 0 var(--accent-2), 0 18px 40px -22px rgb(0 0 0 / .55); }
+.forum-meta b { color: var(--accent-2); }
+.back-link, .back-link:hover { color: white; }
+@media (max-width: 760px) { .forum-replies { margin-left: 12px; } .forum-post { padding: 14px 16px; } }
