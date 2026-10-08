@@ -502,3 +502,19 @@ dialog { border-radius: var(--radius); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+/* Basketball drops the orange UI: black and white everywhere except the banner. */
+:root:not([data-sport="football"]) { --accent: #111317; --accent-soft: #ededeb; --accent-2: #4b5563; --accent-2-soft: #f1f1ef; }
+:root:not([data-sport="football"]) .brand-mark { background: white; color: #111317; }
+:root:not([data-sport="football"]) .site-header { border-bottom-color: #2a2d33; }
+:root:not([data-sport="football"]) .hero {
+  background: radial-gradient(circle at 85% 20%, rgb(255 255 255 / .18) 0 90px, transparent 91px), radial-gradient(circle at 95% 110%, rgb(255 255 255 / .12) 0 160px, transparent 161px), linear-gradient(120deg, #6d28d9, #ff5c17); }
+:root:not([data-sport="football"]) .hero::after { display: none; }
+:root:not([data-sport="football"]) .performer-card:nth-child(3) { border-top-color: #9ca3af; }
+:root:not([data-sport="football"]) .performer-card:nth-child(4) { border-top-color: #d4d4d8; }
+
+/* Active tab: bigger and filled in black, so it's obvious where you are. */
+.content-tabs { padding: 6px; gap: 4px; align-items: center; border-bottom: 1px solid var(--line); border-radius: var(--radius); }
+.content-tabs button { border-bottom: 0; border-radius: 3px; padding: 9px 12px; }
+.content-tabs button.active { background: #111317; color: white; font-size: 18px; font-weight: 700; padding: 9px 16px; }
+.content-tabs button.active svg { color: white; }
