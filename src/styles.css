@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Permanent+Marker&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 
 :root {
   --bg: #fffaf3;
@@ -707,3 +707,147 @@ dialog { border-radius: var(--card-radius); overflow: hidden; }
 .forum-meta b { color: var(--accent-2); }
 .back-link, .back-link:hover { color: white; }
 @media (max-width: 760px) { .forum-replies { margin-left: 12px; } .forum-post { padding: 14px 16px; } }
+
+/* ==========================================================================
+   Apple-style layer: system type with size-specific tracking, frosted glass
+   chrome, soft depth, generous spacing, segmented controls, instant press
+   feedback. League gradients stay as the backdrop.
+   ========================================================================== */
+:root {
+  --sys: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", system-ui, sans-serif;
+  --head: var(--sys);
+  --score: var(--sys);
+  --card-radius: 22px;
+  --radius: 12px;
+  --glass-dark: rgb(16 16 20 / .42);
+  --glass-light: rgb(255 255 255 / .16);
+  --depth: 0 1px 2px rgb(0 0 0 / .06), 0 16px 40px -16px rgb(0 0 0 / .38);
+  --fill: #f2f2f5;
+  --ease: cubic-bezier(.25, .1, .25, 1);
+  font-family: var(--sys);
+  letter-spacing: -.01em;
+}
+body { line-height: 1.47; }
+input, select, textarea, button { font-family: inherit; letter-spacing: inherit; }
+
+/* Type: sentence case, weight for hierarchy, tighter tracking as size grows */
+h1, h2, h3, h4, .section-intro h3, .letter h3, .league-heading h2, .brand strong, .poll-card h4, .performer-card h4, .trade-team b, .move-team, .auth-card h2, .forum-op h3 {
+  font-family: var(--sys); text-transform: none; letter-spacing: -.022em; font-weight: 700;
+}
+.eyebrow, .section-intro .eyebrow, .letter-meta span, .section-intro > span, .score-tile small, .table-header, .rank-head, .poll-meta, .content-tabs button, .league-button, .send-button {
+  text-transform: none; letter-spacing: -.005em;
+}
+.eyebrow { font-size: 13px; font-weight: 600; }
+.section-intro > span { font-size: 13px; font-weight: 500; }
+.rank b, .rank-num, .standing-row strong, .performer-line, .player-facts b, .stat-grid b, .poll-result strong, .score-tile b {
+  font-family: var(--sys); font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+}
+
+/* Frosted chrome */
+.site-header { background: var(--glass-dark); backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%); border-bottom: 1px solid rgb(255 255 255 / .1); }
+.brand strong { font-size: 17px; letter-spacing: -.02em; }
+.brand-mark { border-radius: 8px; font-family: var(--sys); font-weight: 700; font-size: 13px; letter-spacing: -.02em; }
+.site-header .feedback-trigger { border-radius: 980px; border-color: rgb(255 255 255 / .22); }
+
+/* Hero: big, tight, confident */
+.hero { padding-top: 64px; padding-bottom: 44px; }
+.hero h1 { font-weight: 800; font-size: clamp(44px, 7vw, 84px); line-height: 1.02; letter-spacing: -.045em; }
+.hero h1 span { font-family: var(--sys); font-weight: 800; transform: none; letter-spacing: -.045em; color: var(--sun); }
+.hero .eyebrow { color: rgb(255 255 255 / .8); font-size: 15px; }
+.hero-copy { font-size: 19px; letter-spacing: -.012em; color: rgb(255 255 255 / .82); }
+.hero-sticker { font-family: var(--sys); font-size: 12px; font-weight: 600; letter-spacing: 0; padding: 6px 12px; border-radius: 980px; background: var(--glass-light); color: white; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgb(255 255 255 / .25); }
+
+/* Segmented controls (league switch, tabs, filters) */
+.league-switcher, .content-tabs { background: var(--glass-light); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); border: 1px solid rgb(255 255 255 / .18); border-radius: 14px; padding: 4px; gap: 2px; box-shadow: none; }
+.league-button, .content-tabs button { border-radius: 10px; font-size: 15px; font-weight: 600; color: rgb(255 255 255 / .85); padding: 9px 16px; transition: background .2s var(--ease), color .2s var(--ease), transform .1s ease-out; }
+.content-tabs button.active, .league-button.active { background: white; color: #111317; font-size: 15px; padding: 9px 16px; box-shadow: 0 3px 10px rgb(0 0 0 / .14), 0 1px 1px rgb(0 0 0 / .06); }
+.content-tabs button:hover:not(.active) { background: rgb(255 255 255 / .1); }
+.chip-row { background: var(--fill); border: 0; border-radius: 11px; padding: 3px; gap: 2px; }
+.chip-row button { border: 0; border-right: 0; border-radius: 8px; padding: 6px 12px; font-weight: 500; }
+.chip-row button.active { background: white; color: var(--ink); box-shadow: 0 2px 6px rgb(0 0 0 / .12); }
+
+/* Scoreboard: dark glass panel */
+.scoreboard { background: var(--glass-dark); backdrop-filter: blur(24px) saturate(160%); -webkit-backdrop-filter: blur(24px) saturate(160%); border: 1px solid rgb(255 255 255 / .12); border-radius: var(--card-radius); box-shadow: var(--depth); }
+.score-tile { padding: 16px 20px; }
+.score-tile small { font-size: 12px; font-weight: 500; color: rgb(255 255 255 / .6); }
+.score-tile b { font-size: 22px; }
+.score-tile span { color: rgb(255 255 255 / .6); }
+.score-tile + .score-tile::before { transform: none; background: rgb(255 255 255 / .14); top: 16px; bottom: 16px; }
+
+/* Section titles */
+.section-intro { margin-bottom: 18px; }
+.section-intro h3 { font-size: 30px; }
+.section-intro h3::before { display: none; }
+.section-intro .eyebrow { color: rgb(255 255 255 / .75); }
+
+/* Cards: one surface, soft depth, no stripes */
+.announcement-card, .poll-card, .trade-card, .leaderboard, .rank-table, .performer-card, .forum-item, .forum-compose, .commish-editor, .empty-state, .auth-card, .move-list, .forum-post, .forum-op, .forum-replies .forum-post {
+  border: 0; border-radius: var(--card-radius); box-shadow: var(--depth);
+}
+.performer-card::before, .poll-card::before { display: none; }
+.performer-card { padding: 20px 20px 10px; }
+.performer-card h4 { display: block; background: none; color: var(--ink); transform: none; margin: 0 0 6px; padding: 0; font-size: 19px; }
+.performer-card li { border-top-color: #f0f0f2; }
+.performer-card li:first-child .performer-line { color: var(--accent-2); }
+.poll-card { padding: 24px; }
+.poll-meta span, .letter-meta span, .trade-time span, .move-kind { transform: none; border-radius: 6px; font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.poll-meta span { background: var(--fill); color: var(--ink); padding: 3px 9px; }
+.poll-meta b { font-weight: 500; color: var(--muted); }
+.poll-card h4 { font-size: 21px; }
+.poll-options button { border: 0; background: var(--fill); border-radius: 12px; transition: transform .1s ease-out, background .2s var(--ease); }
+.poll-options button.chosen { box-shadow: inset 0 0 0 2px var(--accent-2); }
+.letter-meta span { background: none; color: var(--accent-2); padding: 0; font-size: 13px; }
+.letter h3 { font-size: clamp(32px, 4.5vw, 46px); letter-spacing: -.035em; }
+.trade-time span { background: var(--fill); color: var(--ink); }
+.move-kind { background: var(--fill); color: var(--ink); }
+.move-kind.kind-waiver { background: color-mix(in srgb, var(--accent-2) 14%, white); color: var(--accent-2); }
+.move-team { font-size: 16px; letter-spacing: -.015em; }
+.move-row, .performer-card li, .forum-replies { border-color: #f0f0f2; }
+.forum-meta b { color: var(--accent-2); }
+
+/* Tables: light header, hairline rows */
+.table-header, .rank-head { background: #fafafa; color: var(--muted); font-size: 12px; font-weight: 600; border-bottom: 1px solid #ececef; }
+.standing-row, .rank-row { border-bottom-color: #f0f0f2; }
+.standing-row:nth-child(odd), .rank-row:not(.rank-head):nth-child(odd) { background: transparent; }
+.standing-row strong { font-size: 17px; }
+.rank b { font-size: 20px; }
+
+/* Controls */
+.send-button { border-radius: 980px; text-transform: none; font-size: 15px; font-weight: 600; letter-spacing: -.01em; padding-inline: 20px; background: #111317; }
+.send-button:hover { background: #2a2c31; }
+.ghost-button, .text-button { border-radius: 980px; }
+input, select, textarea { border: 0; background: var(--fill); border-radius: 12px; }
+input:focus, select:focus, textarea:focus { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-2) 35%, transparent); background: white; }
+.rank-controls input { background: white; }
+.pos { border-radius: 5px; }
+.avatar, .card-photo { border-radius: 10px; }
+
+/* Instant press feedback */
+button:active:not(:disabled), .send-button:active { transform: scale(.97); transition: transform .1s ease-out; }
+.content-tabs button:active, .league-button:active { transform: scale(.96); }
+
+/* Player card sheet */
+dialog { border-radius: 26px; box-shadow: 0 30px 80px -20px rgb(0 0 0 / .5); }
+dialog::backdrop { background: rgb(0 0 0 / .32); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.player-modal { border-top: 0; }
+.player-facts, .stat-grid { border-radius: 14px; }
+
+/* Accessibility: reduce motion, transparency, raise contrast */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+  button:active { transform: none !important; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .site-header, .scoreboard { background: #141418; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .league-switcher, .content-tabs, .hero-sticker { background: rgb(0 0 0 / .35); backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+@media (prefers-contrast: more) {
+  .league-switcher, .content-tabs, .scoreboard { border-color: white; }
+  .content-tabs button, .league-button { color: white; }
+}
+@media (max-width: 760px) {
+  .hero h1 { font-size: 44px; }
+  .section-intro h3 { font-size: 26px; }
+  .content-tabs button, .content-tabs button.active { font-size: 14px; padding: 8px 12px; }
+}
+.score-tile b { text-transform: none; }
